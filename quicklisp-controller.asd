@@ -1,6 +1,9 @@
 ;;;; quicklisp-controller.asd
 
 (asdf:defsystem #:quicklisp-controller
+  :description "Build Quicklisp dists."
+  :license "BSD"
+  :author "Zachary Beane <zach@quicklisp.org>"
   :depends-on (#:quicklisp
                #:zs3
                #:zcdb
