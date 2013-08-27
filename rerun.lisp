@@ -1,0 +1,6 @@
+(push '*default-pathname-defaults* asdf:*central-registry*)
+(ql:quickload "quicklisp-controller")
+(in-package :quicklisp-controller)
+(time (map-sources 'ensure-winning-systems))
+(mock-report)
+(sb-ext:quit)

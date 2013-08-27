@@ -1,0 +1,28 @@
+The Quicklisp Controller is responsible for building and updating
+Quicklisp distributions from a project list (maintained separately in
+the quicklisp-projects repo).
+
+It fetches project source from a variety of places: git, cvs, svn,
+http-available tarballs, etc, and uses that to build up metadata about
+the relationships between projects. New or updated projects are then
+uploaded into the quicklisp download space.
+
+You must create ~/quicklisp-controller/ and symlink a checkout of
+quicklisp-projects (or something with similar directory structure) to
+~/quicklisp-controller/projects. A quick way to do that:
+
+  (setup-directories "~/path/to/quicklisp-projects/")
+
+To fetch/update all project sources, use:
+
+  (update-what-you-can)
+
+To build everything that can be built, use:
+
+  (ensure-what-wins-you-can)
+
+To combine those two operations, concluding with a report of what
+differs from the last Quicklisp dist:
+
+  (recrank)
+
