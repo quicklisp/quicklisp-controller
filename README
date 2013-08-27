@@ -26,3 +26,17 @@ differs from the last Quicklisp dist:
 
   (recrank)
 
+
+This project is available from here:
+
+  https://github.com/quicklisp/quicklisp-controller
+
+If you have problems with or find bugs in this project, please open an
+issue here:
+
+  https://github.com/quicklisp/quicklisp-controller/issues
+
+You can also email me: zach@quicklisp.org.
+
+Enjoy!
+
