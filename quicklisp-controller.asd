@@ -12,9 +12,9 @@
                #:drakma
                #:ironclad)
   :serial t
-  :components ((:file "config")
-               (:file "tarhash")
+  :components ((:file "tarhash")
                (:file "package")
+               (:file "config")
                (:file "setup")
                (:file "logical-host")
                (:file "commands")
