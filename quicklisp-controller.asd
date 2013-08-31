@@ -10,7 +10,8 @@
                #:cl-ppcre
                #:alexandria
                #:drakma
-               #:ironclad)
+               #:ironclad
+               #:lparallel)
   :serial t
   :components ((:file "tarhash")
                (:file "package")

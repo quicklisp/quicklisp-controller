@@ -177,12 +177,12 @@
   (flet ((action (stream)
            (call-with-skipping
             (lambda ()
-              (map-sources (lambda (source)
-                             (force-output stream)
-                             (format t "~&Updating ~S from ~A~%"
-                                     (project-name source)
-                                     (location source))
-                             (update-source-cache source))))
+              (pmap-sources (lambda (source)
+                              (force-output stream)
+                              (format t "~&Updating ~S from ~A~%"
+                                      (project-name source)
+                                      (location source))
+                              (update-source-cache source))))
             :stream stream)))
     (if file
         (with-open-file (stream file :direction :output
