@@ -83,6 +83,10 @@
   (:method (source)
     (list :location)))
 
+(defgeneric source-host (source)
+  (:method (source)
+    (puri:uri-host (puri:parse-uri (location source)))))
+
 (defgeneric parse-location (source location-string)
   (:documentation "Update an instance by parsing its location value.")
   (:method (source location-string)
