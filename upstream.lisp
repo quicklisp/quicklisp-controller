@@ -122,7 +122,7 @@
 (defvar *current-mapped-source* nil)
 
 (defun map-source (fun source)
-  (let ((*current-mapped-source* (project-name source-file)))
+  (let ((*current-mapped-source* (project-name source)))
     (with-simple-restart (skip "Skip ~A source" *current-mapped-source*)
       (funcall fun source))))
 

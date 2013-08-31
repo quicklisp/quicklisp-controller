@@ -162,31 +162,41 @@
     (intern (string-upcase project))))
 
 
-(defun call-with-skipping (fun &key (stream *standard-output*))
-  (handler-bind ((error (lambda (condition)
-                          (when (find-restart 'skip)
-                            (when (boundp '*current-mapped-source*)
-                              (format stream "~&* ~A~%" *current-mapped-source*)
-                              (format stream ":: from ~A~%"
-                                      (find-source *current-mapped-source*)))
-                            (format stream "~&SKIPPING (~A)~%" condition)
-                            (invoke-restart 'skip)))))
-    (funcall fun)))
+(defvar *output-lock* (bt:make-lock "output-lock"))
 
-(defun update-what-you-can (&optional file)
+(defun call-with-skipping (fun &key (stream *standard-output*) parallel)
+  (flet ((invoke-skip (condition)
+           (when (find-restart 'skip)
+             (bt:with-lock-held (*output-lock*)
+               (when (boundp '*current-mapped-source*)
+                 (format stream "~&* ~A~%" *current-mapped-source*)
+                 (format stream ":: from ~A~%"
+                         (find-source *current-mapped-source*)))
+               (format stream "~&SKIPPING (~A)~%" condition))
+             (invoke-restart 'skip))))
+    (if (not parallel)
+        (handler-bind ((error #'invoke-skip))
+          (funcall fun))
+        (lparallel:task-handler-bind ((error #'invoke-skip))
+          (funcall fun)))))
+
+(defun update-what-you-can (&optional file parallel)
   (flet ((action (stream)
            (call-with-skipping
             (lambda ()
-              (pmap-sources (lambda (source)
-                              (force-output stream)
-                              (format t "~&Updating ~S from ~A~%"
-                                      (project-name source)
-                                      (location source))
-                              (update-source-cache source))))
-            :stream stream)))
+              (funcall (if parallel 'pmap-sources 'map-sources)
+                       (lambda (source)
+                         (bt:with-lock-held (*output-lock*)
+                           (force-output stream)
+                           (format t "~&Updating ~S from ~A~%"
+                                   (project-name source)
+                                   (location source)))
+                         (update-source-cache source))))
+            :stream stream
+            :parallel parallel)))
     (if file
         (with-open-file (stream file :direction :output
-                                :if-exists :rename-and-delete)
+                                     :if-exists :rename-and-delete)
           (action (make-broadcast-stream *standard-output* stream)))
         (action *standard-output*))))
 
