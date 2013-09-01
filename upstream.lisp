@@ -83,6 +83,10 @@
   (:method (source)
     (list :location)))
 
+(defgeneric source-host (source)
+  (:method (source)
+    (puri:uri-host (puri:parse-uri (location source)))))
+
 (defgeneric parse-location (source location-string)
   (:documentation "Update an instance by parsing its location value.")
   (:method (source location-string)
@@ -117,14 +121,35 @@
 
 (defvar *current-mapped-source* nil)
 
+(defun map-source (fun source)
+  (let ((*current-mapped-source* (project-name source)))
+    (with-simple-restart (skip "Skip ~A source" *current-mapped-source*)
+      (funcall fun source))))
+
 (defun map-sources (fun)
   (with-simple-restart (abort "Give up entirely")
     (dolist (source-file
               (directory #p"quicklisp-controller:projects;**;source.txt"))
-      (let* ((project-name (pathname-project-name source-file))
-             (*current-mapped-source* project-name))
-        (with-simple-restart (skip "Skip ~A source" project-name)
-          (funcall fun (load-source-file project-name source-file)))))))
+      (let ((project-name (pathname-project-name source-file)))
+        (map-source fun (load-source-file project-name source-file))))))
+
+(defun pmap-sources (fun)
+  (let ((dependency-tree (lparallel:make-ptree))
+        (host-dependency (make-hash-table :test 'equal))
+        (i 0))
+    (map-sources (lambda (source)
+                   (let ((host (source-host source)))
+                     (lparallel:ptree-fn i (gethash host host-dependency)
+                                         (lambda (&optional arg)
+                                           (declare (ignore arg))
+                                           (map-source fun source))
+                                         dependency-tree)
+                     (setf (gethash host host-dependency) (list i))
+                     (incf i))))
+    (lparallel:ptree-fn 'everything (loop for j below i collect j)
+                        (constantly nil) dependency-tree)
+    (lparallel:call-ptree 'everything dependency-tree)
+    nil))
 
 (defun find-source (name)
   (block nil
