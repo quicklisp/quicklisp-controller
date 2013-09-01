@@ -180,7 +180,7 @@
         (lparallel:task-handler-bind ((error #'invoke-skip))
           (funcall fun)))))
 
-(defun update-what-you-can (&optional file parallel)
+(defun update-what-you-can (&key file parallel)
   (flet ((action (stream)
            (call-with-skipping
             (lambda ()
