@@ -18,6 +18,12 @@
 (defmethod source-location-initargs ((source cvs-oddmodule-source))
   (list :location :module-name))
 
+(defmethod source-host ((source cvs-source))
+  (let* ((location (location source))
+         (host-start (1+ (position #\@ location)))
+         (host-end (position #\: location :start host-start)))
+    (subseq location host-start host-end)))
+
 (defmethod source-description ((source cvs-source))
   (format nil "cvs -d ~A co ~A"
           (location source)
