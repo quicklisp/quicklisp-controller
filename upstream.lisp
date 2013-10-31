@@ -153,11 +153,17 @@
     (lparallel:call-ptree 'everything dependency-tree)
     nil))
 
-(defun find-source (name)
-  (block nil
-    (map-sources (lambda (source)
-                   (when (string-equal (project-name source) name)
-                     (return source))))))
+(defun project-name-source-file (project-name)
+  (make-pathname :host "quicklisp-controller"
+                 :directory (list :absolute "projects" project-name)
+                 :name "source"
+                 :type "txt"))
+
+(defun find-source (project-name)
+  (let* ((name (string-downcase project-name))
+         (file (probe-file (project-name-source-file name))))
+    (when file
+      (load-source-file name file))))
 
 (defun source-designator (source)
   (if (typep source 'upstream-source)

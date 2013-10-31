@@ -4,6 +4,28 @@
 
 (defclass single-file-source (http-source) ())
 
+(defun asdf-external-symbol-p (thing)
+  "Returns true if THING is a symbol exported from ASDF."
+  (and (symbolp thing)
+       (multiple-value-bind (symbol class)
+           (find-symbol (symbol-name thing) :asdf)
+         (and (eq symbol thing)
+              (eql :external class)))))
+
+(defun print-asdf-external-symbol (stream symbol)
+  "If SYMBOL is exported from the ASDF package, print it with ASDF: as
+a prefix, rather than using its actual home package as a prefix. This
+matters for symbols like ASDF/DEFSYSTEM:DEFSYSTEM in ASDF 3."
+  (format stream "~A:~A" :asdf (make-symbol (symbol-name symbol))))
+
+(defparameter *single-file-pprint-dispatch*
+  (let ((table (copy-pprint-dispatch)))
+    (set-pprint-dispatch '(satisfies asdf-external-symbol-p)
+                         'print-asdf-external-symbol
+                         0
+                         table)
+    table))
+
 (defgeneric single-file-name (source)
   (:method ((source single-file-source))
     (let ((slash (position #\/ (location source) :from-end t)))
@@ -26,11 +48,13 @@
 
 (defgeneric write-single-file-asd (source file)
   (:method (source file)
-    (with-open-file (stream file :direction :output)
+    (with-open-file (stream file :direction :output
+                            :if-exists :supersede)
       (let ((*print-case* :downcase)
-            (*package* (find-package :keyword)))
+            (*package* (find-package :keyword))
+            (*print-pprint-dispatch* *single-file-pprint-dispatch*))
         (format stream ";;;; ~A, automatically created by quicklisp~%~%"
-                (project-name source))
+                (file-namestring file))
         (format stream "~S~%" (single-file-asd-form source))))))
 
 (defmethod make-release-tarball ((source single-file-source)
