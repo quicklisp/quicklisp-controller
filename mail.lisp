@@ -25,3 +25,9 @@
                              :from ,from
                              :to ,to
                              :subject ,subject))
+
+(defun mail-file (file &key from to (subject ""))
+  (with-open-file (input file)
+    (with-output-to-mail (output :from from :to to :subject subject)
+      (loop for line = (read-line input nil)
+            while line do (write-line line output)))))
