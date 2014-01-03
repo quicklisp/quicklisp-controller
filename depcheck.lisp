@@ -34,13 +34,11 @@
        (string= name "sb-" :end1 3)))
 
 (defun normalize-dependency (name)
-  (cond ((and (consp name)
-              (keywordp (first name)))
-         (string-downcase (second name)))
-        ((or (symbolp name) (stringp name))
-         (string-downcase name))
-        (t (error "Don't know how to normalize ~S" name))))
+  (asdf/find-component:resolve-dependency-spec nil name))
 
+;; Suggestion(fare): back in the days of ASDF 2.014.6, this was necessary,
+;; but with ASDF 3, an advice :around function asdf::register-system-definition would be simpler.
+;; See also https://bugs.launchpad.net/asdf/+bug/1265700 and some 2013 discussions on asdf-devel.
 (defun make-hook (old-hook system-name)
   (lambda (fun form env)
     (when (and (consp form)
@@ -50,7 +48,7 @@
             (prereqs (getf (cddr form) :defsystem-depends-on))
             (weak (getf (cddr form) :weakly-depends-on)))
         (setf deps (append deps prereqs weak))
-        (setf *direct-dependencies* (mapcar 'normalize-dependency deps))))
+        (setf *direct-dependencies* (remove nil (mapcar 'normalize-dependency deps)))))
     (funcall old-hook fun form env)))
 
 (defvar *in-find-system* nil)
@@ -97,10 +95,11 @@
           (*in-find-system* t))
       (check-system-metadata (asdf:find-system system-file))
       (setf dependencies *implied-dependencies*))
-    (asdf:oos 'asdf:load-op system-name)
+    (asdf:load-system system-name)
     (setf dependencies
-          (remove-duplicates (append *direct-dependencies* dependencies)
-                             :test #'equalp))
+          (remove-duplicates
+           (mapcar 'asdf:primary-system-name (append *direct-dependencies* dependencies))
+           :test #'equalp))
     (sort (remove-if #'sbcl-contrib-p dependencies) #'string<)))
 
 (defun magic (system-file system trace-file)
