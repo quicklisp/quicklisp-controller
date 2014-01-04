@@ -154,10 +154,13 @@
     nil))
 
 (defun project-name-source-file (project-name)
-  (make-pathname :host "quicklisp-controller"
-                 :directory (list :absolute "projects" project-name)
-                 :name "source"
-                 :type "txt"))
+  (merge-pathnames
+   (make-pathname :defaults "" :directory (list :relative :back project-name))
+   (translate-logical-pathname
+    (make-pathname :host "quicklisp-controller"
+                   :directory (list :absolute "projects" "stub")
+                   :name "source"
+                   :type "txt"))))
 
 (defun find-source (project-name)
   (let* ((name (string-downcase project-name))
