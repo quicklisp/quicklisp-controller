@@ -299,7 +299,8 @@
           (copy file "fails/"))))
     (run "tar" "czvf" (pathname output) "fails/")))
 
-(defun recrank (&key (update t) (report t) file)
+(defun recrank (&key (update t) (report t)
+                (file #p"quicklisp:tmp;update-failures.txt"))
   (when update
     (update-what-you-can :file file)
     (when (and file *report-to-email*)
@@ -314,6 +315,12 @@
   (when report
     (with-skipping
       (mock-report :mail t))))
+
+(defun recrank-to-file (file)
+  (with-open-file (*command-output* file
+                                    :direction :output
+                                    :if-exists :supersede)
+    (recrank)))
 
 (defparameter *project-name-guessers*
   '("/.*?/([^/]*)\\.git$"
