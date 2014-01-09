@@ -84,22 +84,24 @@
       (check-attribute 'asdf:system-author :author))))
 
 (defun compute-dependencies (system-file system-name)
-  (let* ((asdf:*system-definition-search-functions*
+  (assert (equal system-name) (primary-system-name system-name)) ;; currently only works on primary-systems
+  (let ((asdf:*system-definition-search-functions*
           (list 'system-finder))
-         (dependencies nil)
-         (*direct-dependencies* nil))
+        (dependencies nil)
+        (*direct-dependencies* nil))
     (let ((*implied-dependencies* nil)
           (*in-find-system* t))
       (check-system-metadata (asdf:find-system system-file))
       (setf dependencies *implied-dependencies*))
     (asdf:load-system system-name)
     (setf dependencies
-          (remove-duplicates
-           (mapcar 'asdf::primary-system-name
-                   (remove nil
-                           (mapcar 'normalize-dependency
-                                   (append *direct-dependencies* dependencies))))
-           :test #'equalp))
+          (remove system-name
+                  (remove-duplicates
+                   (mapcar 'asdf::primary-system-name
+                           (remove nil
+                                   (mapcar 'normalize-dependency
+                                           (append *direct-dependencies* dependencies))))
+                   :test #'equalp)))
     (sort (remove-if #'sbcl-contrib-p dependencies) #'string<)))
 
 (defun magic (system-file system trace-file)
