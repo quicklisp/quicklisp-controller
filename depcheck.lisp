@@ -34,24 +34,21 @@
        (string= name "sb-" :end1 3)))
 
 (defun normalize-dependency (name)
-  (cond ((and (consp name)
-              (keywordp (first name)))
-         (string-downcase (second name)))
-        ((or (symbolp name) (stringp name))
-         (string-downcase name))
-        (t (error "Don't know how to normalize ~S" name))))
+  (asdf/find-component:resolve-dependency-spec nil name))
 
-(defun make-hook (old-hook system-name)
-  (lambda (fun form env)
-    (when (and (consp form)
-               (eq (first form) 'asdf:defsystem)
-               (string-equal (second form) system-name))
-      (let ((deps (getf (cddr form) :depends-on))
-            (prereqs (getf (cddr form) :defsystem-depends-on))
-            (weak (getf (cddr form) :weakly-depends-on)))
-        (setf deps (append deps prereqs weak))
-        (setf *direct-dependencies* (mapcar 'normalize-dependency deps))))
-    (funcall old-hook fun form env)))
+;; Suggestion(fare): back in the days of ASDF 2.014.6, this was necessary,
+;; but with ASDF 3, an advice :around function asdf::register-system-definition would be simpler.
+;; See also https://bugs.launchpad.net/asdf/+bug/1265700 and some 2013 discussions on asdf-devel.
+
+(defvar *original-register-system-definition* #'asdf::register-system-definition)
+
+(defun register-system-definition-hook (name &rest options
+                                        &key depends-on weakly-depends-on defsystem-depends-on
+                                        &allow-other-keys)
+  (setf *direct-dependencies* (append depends-on weakly-depends-on defsystem-depends-on))
+  (apply *original-register-system-definition* name options))
+
+(setf (symbol-function 'asdf::register-system-definition) #'register-system-definition-hook)
 
 (defvar *in-find-system* nil)
 (defvar *implied-dependencies* nil)
@@ -87,20 +84,24 @@
       (check-attribute 'asdf:system-author :author))))
 
 (defun compute-dependencies (system-file system-name)
-  (let* ((asdf:*system-definition-search-functions*
-          (list #-asdf3 'asdf::sysdef-find-asdf
-                'system-finder))
-         (dependencies nil)
-         (*direct-dependencies* nil)
-         (*macroexpand-hook* (make-hook *macroexpand-hook* system-name)))
+  (assert (equal system-name) (primary-system-name system-name)) ;; currently only works on primary-systems
+  (let ((asdf:*system-definition-search-functions*
+          (list 'system-finder))
+        (dependencies nil)
+        (*direct-dependencies* nil))
     (let ((*implied-dependencies* nil)
           (*in-find-system* t))
       (check-system-metadata (asdf:find-system system-file))
       (setf dependencies *implied-dependencies*))
-    (asdf:oos 'asdf:load-op system-name)
+    (asdf:load-system system-name)
     (setf dependencies
-          (remove-duplicates (append *direct-dependencies* dependencies)
-                             :test #'equalp))
+          (remove system-name
+                  (remove-duplicates
+                   (mapcar 'asdf::primary-system-name
+                           (remove nil
+                                   (mapcar 'normalize-dependency
+                                           (append *direct-dependencies* dependencies))))
+                   :test #'equalp)))
     (sort (remove-if #'sbcl-contrib-p dependencies) #'string<)))
 
 (defun magic (system-file system trace-file)
