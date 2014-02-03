@@ -235,7 +235,8 @@ true. If there's a SHA1 mismatch, signal an error."
           (make-mock-dist "mock" "9999-99-99" target-directory)))
       (ql-dist:show-update-report (ql-dist:find-dist "quicklisp")
                                   (ql-dist:find-dist "mock"))
-      (print (multiple-value-list (system-differences "quicklisp" "mock")))))
+      (print (multiple-value-list (system-differences "quicklisp" "mock")))
+      (sanity-check-report "mock")))
   (when mail
     (mail-mock-report)))
 

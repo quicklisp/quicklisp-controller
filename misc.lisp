@@ -437,17 +437,42 @@
         (push system (gethash required-system table))))
     (alexandria:hash-table-keys table)))
 
+(defparameter *whitelisted-unprovided-systems*
+  '("asdf"))
+
 (defun unprovided-required-systems (dist)
   (let ((provided-systems (mapcar 'ql-dist:name
                                   (ql-dist:provided-systems dist)))
         (required-systems (ql-dist:required-systems dist)))
     (let ((unprovided (set-difference required-systems provided-systems
                                       :test 'equalp)))
-      unprovided)))
+      (set-difference unprovided *whitelisted-unprovided-systems*
+                      :test 'string=))))
+
+(defun unprovided-required-systems-report (dist)
+  (let ((unprovided (unprovided-required-systems (ql-dist:dist dist))))
+    (when unprovided
+      (format *error-output* "UNPROVIDED (but required) systems: ~A~%"
+              unprovided))))
 
 (defun self-referential-systems (dist)
-  (let ((provided-systems (ql-dist:provided-systems dist)))
+  (let ((provided-systems (ql-dist:provided-systems (ql-dist:dist dist))))
     (loop for system in provided-systems
           for required = (ql-dist:required-systems system)
           when (find (ql-dist:name system) required :test 'string=)
           collect (list (ql-dist:name system) required))))
+
+(defun self-referential-systems-report (dist)
+  (let ((self-referential (self-referential-systems dist)))
+    (when self-referential
+      (format *error-output* "SELF-REFERENTIAL systems: ~A~%"
+              self-referential))))
+
+(defparameter *sanity-check-reports*
+  '(unprovided-required-systems-report
+    self-referential-systems-report))
+
+(defun sanity-check-report (dist)
+  (fresh-line)
+  (dolist (fun *sanity-check-reports*)
+    (funcall fun dist)))
