@@ -452,7 +452,7 @@
 (defun unprovided-required-systems-report (dist)
   (let ((unprovided (unprovided-required-systems (ql-dist:dist dist))))
     (when unprovided
-      (format *error-output* "UNPROVIDED (but required) systems: ~A~%"
+      (format t "UNPROVIDED (but required) systems: ~A~%"
               unprovided))))
 
 (defun self-referential-systems (dist)
@@ -465,7 +465,7 @@
 (defun self-referential-systems-report (dist)
   (let ((self-referential (self-referential-systems dist)))
     (when self-referential
-      (format *error-output* "SELF-REFERENTIAL systems: ~A~%"
+      (format t "SELF-REFERENTIAL systems: ~A~%"
               self-referential))))
 
 (defparameter *sanity-check-reports*
