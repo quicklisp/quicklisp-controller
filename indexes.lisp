@@ -261,14 +261,7 @@ true. If there's a SHA1 mismatch, signal an error."
                  (push key removed))
                old-table)
       (values added
-              (mapcar (lambda (name)
-                        (let ((release (ql-dist:name
-                                        (ql-dist:release
-                                         (ql-dist:find-system-in-dist
-                                          name (ql-dist:dist old-dist))))))
-                          (if (equalp name release)
-                              name
-                              (list name :from release))))
+              (mapcar (=system-from-release old-dist)
                       removed)))))
 
 (defun dist-differences (old-dist new-dist &key enumerator)

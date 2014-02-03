@@ -6,6 +6,19 @@
   (run "rm" "-rf" (merge-pathnames ".cache/common-lisp/"
                                    (user-homedir-pathname))))
 
+(defun system-from-release (system-name dist)
+  (let* ((dist (ql-dist:dist dist))
+         (system (ql-dist:find-system-in-dist system-name dist))
+         (release (ql-dist:release system))
+         (release-name (ql-dist:name release)))
+    (if (equal system-name release-name)
+        system-name
+        (list system-name :from release-name))))
+
+(defun =system-from-release (dist)
+  (lambda (system-name)
+    (system-from-release system-name dist)))
+
 (defun write-dotfile (index-file dot-file)
   (let ((inlinks (make-string-table))
         (outlinks (make-string-table))
