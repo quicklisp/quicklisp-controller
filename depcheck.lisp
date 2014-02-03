@@ -33,10 +33,15 @@
   (and (<= 3 (length name))
        (string= name "sb-" :end1 3)))
 
+(defun dependency-list-dependency (list)
+  (ecase (first list)
+    (:version (second list))
+    (:feature (third list))))
+
 (defun normalize-dependency (name)
   (cond ((and (consp name)
               (keywordp (first name)))
-         (string-downcase (second name)))
+         (string-downcase (dependency-list-dependency name)))
         ((or (symbolp name) (stringp name))
          (string-downcase name))
         (t (error "Don't know how to normalize ~S" name))))
