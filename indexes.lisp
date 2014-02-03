@@ -248,7 +248,16 @@ true. If there's a SHA1 mismatch, signal an error."
                  (declare (ignore system))
                  (push key removed))
                old-table)
-      (values added removed))))
+      (values added
+              (mapcar (lambda (name)
+                        (let ((release (ql-dist:name
+                                        (ql-dist:release
+                                         (ql-dist:find-system-in-dist
+                                          name (ql-dist:dist old-dist))))))
+                          (if (equalp name release)
+                              name
+                              (list name :from release))))
+                      removed)))))
 
 (defun dist-differences (old-dist new-dist &key enumerator)
   "Report on the systems that differ between old-dist and new-dist."
