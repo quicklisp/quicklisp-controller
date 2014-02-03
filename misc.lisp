@@ -413,3 +413,28 @@
   (ensure-directories-exist *failure-share-directory*)
   (dolist (file (failing-system-files source))
     (copy file (merge-pathnames *failure-share-directory* file))))
+
+;;; Sanity-checking a dist
+
+;; FIXME: This should go into the client directly
+(defmethod ql-dist:required-systems ((dist ql-dist:dist))
+  (let ((table (make-string-table)))
+    (dolist (system (ql-dist:provided-systems dist))
+      (dolist (required-system (ql-dist:required-systems system))
+        (push system (gethash required-system table))))
+    (alexandria:hash-table-keys table)))
+
+(defun unprovided-required-systems (dist)
+  (let ((provided-systems (mapcar 'ql-dist:name
+                                  (ql-dist:provided-systems dist)))
+        (required-systems (ql-dist:required-systems dist)))
+    (let ((unprovided (set-difference required-systems provided-systems
+                                      :test 'equalp)))
+      unprovided)))
+
+(defun self-referential-systems (dist)
+  (let ((provided-systems (ql-dist:provided-systems dist)))
+    (loop for system in provided-systems
+          for required = (ql-dist:required-systems system)
+          when (find (ql-dist:name system) required :test 'string=)
+          collect (list (ql-dist:name system) required))))
