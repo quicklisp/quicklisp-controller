@@ -117,6 +117,9 @@
          (files (directory wild)))
     (mapcan (lambda (file)
               (unless (funcall blacklist-fun file)
+                (when (find-if #'upper-case-p (file-namestring file))
+                  (error "Mixed-case system file ~A cannot be used"
+                         file))
                 (list (enough-namestring file base))))
             files)))
 
