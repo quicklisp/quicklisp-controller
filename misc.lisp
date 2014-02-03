@@ -316,11 +316,11 @@
     (with-skipping
       (mock-report :mail t))))
 
-(defun recrank-to-file (file)
+(defun recrank-to-file (file &rest args &key &allow-other-keys )
   (with-open-file (*command-output* file
                                     :direction :output
                                     :if-exists :supersede)
-    (recrank)))
+    (apply #'recrank args)))
 
 (defparameter *project-name-guessers*
   '("/.*?/([^/]*)\\.git$"
