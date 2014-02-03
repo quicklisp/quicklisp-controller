@@ -5,6 +5,16 @@
 (defvar *index-file-format-version* 27)
 (defparameter *s3-bucket* "beta.quicklisp.org")
 
+(defun unslashify-system-name (system-name)
+  (let ((slash (position #\/ system-name)))
+    (if slash
+        (subseq system-name 0 slash)
+        system-name)))
+
+(defun cleanse-dependencies (system-name dependencies)
+  (let ((unslashed (mapcar 'unslashify-system-name dependencies)))
+    (remove system-name unslashed :test 'string=)))
+
 (defun write-system-index (file)
   (with-open-file (stream file :direction :output
                           :if-exists :supersede)
@@ -16,6 +26,8 @@
            (dolist (winner winners)
              (destructuring-bind (system-file system-name &rest dependencies)
                  winner
+               (setf dependencies (cleanse-dependencies system-name
+                                                        dependencies))
                (format stream "~A ~A ~A~{ ~A~}~%"
                        (project-name source)
                        system-file
