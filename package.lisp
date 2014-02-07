@@ -18,6 +18,13 @@
   (:shadowing-import-from #:quicklisp-tarhash
                           #:content-hash)
   (:shadowing-import-from #:alexandria
-                          #:when-let))
+                          #:when-let)
+  (:shadowing-import-from #:ql-dist
+                          #:provided-systems
+                          #:required-systems
+                          #:provided-releases
+                          #:name
+                          #:dist
+                          #:release))
 
 (in-package #:quicklisp-controller)

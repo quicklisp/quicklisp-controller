@@ -39,4 +39,5 @@
                (:file "fail-dwim")
                (:file "map-systems")
                (:file "update-client-version")
-               (:file "descriptions")))
+               (:file "descriptions")
+               (:file "ng-indexes")))
