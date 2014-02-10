@@ -327,7 +327,8 @@ if needed."
         (funcall fun system-file-name system)))))
 
 (defun acceptable-system-name (name)
-  (not (position #\/ name)))
+  (declare (ignore name))
+  t)
 
 (defun cache-winning-systems (source &key (recheck t))
   "A source may have multiple system files in it. Each system file
