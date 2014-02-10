@@ -336,32 +336,32 @@ are loadable for SOURCE and return a list of lists. Each list has the
 structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
-  (let ((winners '()))
+  (let ((winners '())
+        (win-file (relative-to  "win")))
     (map-source-systems
      source
      (lambda (system-name system)
-       (when (acceptable-system-name system)
-         (let ((cached-winfile (winfail-file "win" source system-name system))
-               (cached-failfile (winfail-file "fail" source system-name system)))
-           (if (and (not recheck)
-                    (probe-file cached-winfile))
-               (push (split-spaces (first-line-of cached-winfile)) winners)
-               (multiple-value-bind (deps winfile failfile)
-                   (depcheck system-name system)
-                 (declare (ignore winfile))
-                 (cond (deps
-                        (ignore-errors (delete-file cached-failfile))
-                        (ensure-directories-exist cached-winfile)
-                        (save-lines (list (format nil "~A~{ ~A~}"
-                                                  system-name deps))
-                                    cached-winfile)
-                        (push (cons system-name deps) winners))
-                       (failfile
-                        (ignore-errors (delete-file cached-winfile))
-                        (ensure-directories-exist cached-failfile)
-                        (copy failfile cached-failfile))
-                       (t
-                        (error "No deps and no failfile?")))))))))
+       (let ((cached-winfile (winfail-file "win" source system-name system))
+             (cached-failfile (winfail-file "fail" source system-name system)))
+         (if (and (not recheck)
+                  (probe-file cached-winfile))
+             (push (split-spaces (first-line-of cached-winfile)) winners)
+             (multiple-value-bind (deps winfile failfile)
+                 (depcheck system-name system)
+               (declare (ignore winfile))
+               (cond (deps
+                      (ignore-errors (delete-file cached-failfile))
+                      (ensure-directories-exist cached-winfile)
+                      (save-lines (list (format nil "~A~{ ~A~}"
+                                                system-name deps))
+                                  cached-winfile)
+                      (push (cons system-name deps) winners))
+                     (failfile
+                      (ignore-errors (delete-file cached-winfile))
+                      (ensure-directories-exist cached-failfile)
+                      (copy failfile cached-failfile))
+                     (t
+                      (error "No deps and no failfile?"))))))))
     winners))
 
 (defun find-more-winning-systems (source)
