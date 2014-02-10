@@ -39,7 +39,10 @@
     (format stream "~S" (name object))))
 
 (defclass controller-system (controller-dist-object)
-  ((required-systems
+  ((system-file-name
+    :initarg :system-file-name
+    :reader system-file-name)
+   (required-systems
     :initarg :required-systems
     :reader required-systems)
    (release
@@ -50,11 +53,13 @@
   (project-name source))
 
 (defun make-controller-system (winner-info &key release)
-  (destructuring-bind (system-name &rest required-system-names)
-      (rest winner-info)
+  (destructuring-bind (system-file-name system-name
+                                        &rest required-system-names)
+      winner-info
     (make-instance 'controller-system
                    :release release
                    :name system-name
+                   :system-file-name system-file-name
                    :required-systems required-system-names)))
 
 (defun make-controller-dist ()
@@ -76,3 +81,63 @@
              (setf (gethash (name release) (release-table dist)) release)
              (push release (provided-releases dist)))))))
     dist))
+
+
+(defun slashed-name-p (name)
+  (position #\/ name))
+
+(defun flat-unique (strings &key (test 'equalp))
+  (remove-duplicates (alexandria:flatten strings) :test test))
+
+(defun resolve-slashed-system (system-name required-system-name dist)
+  (let ((system-table (system-table dist)))
+    (labels ((lookup (name)
+               (or (gethash name system-table)
+                   (progn (warn "Unknown system ~S" name)
+                          nil)))
+             (maybe-required-systems (thing)
+               (when thing
+                 (required-systems thing)))
+             (resolve (name)
+               (let* ((unslashed (unslashify-system-name name))
+                      (slashedp (slashed-name-p name))
+                      (samep (and slashedp (equal system-name unslashed))))
+                 (cond ((and slashedp samep)
+                        (flat-unique
+                         (mapcar #'resolve
+                                 (maybe-required-systems (lookup name)))))
+                       (slashedp
+                        unslashed)
+                       (t
+                        name)))))
+      (resolve required-system-name))))
+
+(defmethod dist ((system controller-system))
+  (dist (release system)))
+
+(defun resolved-required-systems (system)
+  (let ((dist (dist system))
+        (name (name system)))
+    (flat-unique
+     (mapcar (lambda (required-system-name)
+               (resolve-slashed-system name required-system-name dist))
+             (required-systems system)))))
+
+
+(defmethod provided-systems ((dist controller-dist))
+  (loop for release in (provided-releases dist)
+        appending (provided-systems release)))
+
+(defun write-systems-index (dist file)
+  (let ((systems (provided-systems dist)))
+    (setf systems (sort (copy-list systems) #'string< :key 'name))
+    (with-open-file (stream file :direction :output
+                            :if-exists :supersede)
+      (write-line *system-file-header* stream)
+      (dolist (system systems)
+        (unless (slashed-name-p (name system))
+          (format stream "~A ~A ~A~{ ~A~}~%"
+                  (name (release system))
+                  (system-file-name system)
+                  (name system)
+                  (resolved-required-systems system)))))))

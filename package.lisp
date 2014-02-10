@@ -23,6 +23,7 @@
                           #:provided-systems
                           #:required-systems
                           #:provided-releases
+                          #:system-file-name
                           #:name
                           #:dist
                           #:release))
