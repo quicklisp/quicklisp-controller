@@ -100,13 +100,18 @@
          (*macroexpand-hook* (make-hook *macroexpand-hook* system-name)))
     (let ((*implied-dependencies* nil)
           (*in-find-system* t))
-      (check-system-metadata (asdf:find-system system-file))
-      (setf dependencies *implied-dependencies*))
+      (asdf:find-system system-file)
+      (check-system-metadata (asdf:find-system system-name))
+      (force-output *standard-output*)
+      (when (equalp system-file system-name)
+        (setf dependencies *implied-dependencies*)))
     (asdf:oos 'asdf:load-op system-name)
     (setf dependencies
           (remove-duplicates (append *direct-dependencies* dependencies)
                              :test #'equalp))
-    (sort (remove-if #'sbcl-contrib-p dependencies) #'string<)))
+    (setf dependencies
+          (sort (remove-if #'sbcl-contrib-p dependencies) #'string<))
+    dependencies))
 
 (defun magic (system-file system trace-file)
   (handler-bind ((sb-ext:defconstant-uneql #'continue))
