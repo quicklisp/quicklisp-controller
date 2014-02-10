@@ -4,6 +4,9 @@
 
 (defvar *index-file-format-version* 27)
 (defparameter *s3-bucket* "beta.quicklisp.org")
+(defparameter *system-file-header*
+  "# project system-file system-name [dependency1..dependencyN]")
+
 
 (defun unslashify-system-name (system-name)
   (let ((slash (position #\/ system-name)))
@@ -18,7 +21,7 @@
 (defun write-system-index (file)
   (with-open-file (stream file :direction :output
                           :if-exists :supersede)
-    (format stream "# project system-file system-name [dependency1..dependencyN]~%")
+    (format stream "~A~%" *system-file-header*)
     (map-sources
      (lambda (source)
        (let ((winners (find-winning-systems source)))
