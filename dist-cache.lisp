@@ -229,7 +229,7 @@ if needed."
   "If true, a depcheck will fail if :author/:description/:license
   options are missing from a system.")
 
-(defun depcheck (system-name system)
+(defun depcheck (primary-system sub-system)
   (ensure-system-file-index)
   (let ((win (translate-logical-pathname #p"quicklisp-controller:tmp;depcheck-win.txt"))
         (fail *depcheck-fail-file*))
@@ -238,13 +238,17 @@ if needed."
     (ignore-errors
       (run "depcheck"
            (native (translate-logical-pathname *system-file-index-file*))
-           system-name system win fail *system-metadata-required-p*))
+           primary-system sub-system win fail *system-metadata-required-p*))
     (let* ((won (probe-file win))
            (first-line (and won (ignore-errors (first-line-of win))))
            (result (and first-line (split-spaces first-line))))
       (unless result
         (when won
           (delete-file win)))
+      (when (member sub-system (rest result) :test 'string=)
+        (warn "~S is a dependency of itself in depcheck" sub-system)
+        (setf (rest result)
+              (remove sub-system (rest result) :test 'string=)))
       (values result (probe-file win) (probe-file fail)))))
 
 (defun system-file-magic (system-name)
@@ -307,13 +311,18 @@ if needed."
                 (list system-file system)))
             files)))
 
+(defun encode-string-for-filesystem (string)
+  "Encode STRING in a way that makes it suitable for using as a
+  directory component, pathname-name, or pathname-type."
+  (substitute #\_ #\/ string))
+
 (defun winfail-file (winfail source system-file system)
   (let ((name (format nil "~A_~A_~A_~A"
                       winfail
                       (project-name source)
                       system-file
                       system)))
-    (build-relative (make-pathname :name name
+    (build-relative (make-pathname :name (encode-string-for-filesystem name)
                                    :type "txt"
                                    :directory (list :relative winfail))
                     source)))
