@@ -35,7 +35,7 @@
 
 (defun dependency-list-dependency (list)
   (ecase (first list)
-    (:version (second list))
+    ((:version :require) (second list))
     (:feature (third list))))
 
 (defun normalize-dependency (name)
