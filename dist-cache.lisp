@@ -347,7 +347,7 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
   (let ((winners '())
-        (win-file (relative-to  "win")))
+        (win-file (relative-to source "win")))
     (map-source-systems
      source
      (lambda (system-name system)
