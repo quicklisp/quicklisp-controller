@@ -94,6 +94,7 @@
 (defun compute-dependencies (system-file system-name)
   (let* ((asdf:*system-definition-search-functions*
           (list #-asdf3 'asdf::sysdef-find-asdf
+                #+asdf3.1 'asdf::sysdef-package-inferred-system-search
                 'system-finder))
          (dependencies nil)
          (*direct-dependencies* nil)
