@@ -10,6 +10,7 @@
   (:default-initargs
    :command "git"
    :checkout-subcommand "clone"
+   :checkout-subcommand-arguments '("--recursive")
    :update-subcommand "pull"))
 
 (defclass tagged-git-source (tagged-mixin git-source)
@@ -20,6 +21,10 @@
 
 (defmethod checkout-subcommand-arguments ((source branched-git-source))
   (append (call-next-method) (list "--branch" (branch-name source))))
+
+(defmethod vcs-update :after ((source git-source) checkout-directory)
+  (with-posix-cwd checkout-directory
+    (run "git" "submodule" "update" "--init" "--recursive")))
 
 (defmethod cached-checkout-directory :around ((source git-source))
   ;; Older gits have problems with checking out to a directory with
