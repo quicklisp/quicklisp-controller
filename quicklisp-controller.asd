@@ -10,10 +10,14 @@
                #:cl-ppcre
                #:alexandria
                #:drakma
+               #:yason
+               #:function-cache
+	       #:trivial-utf-8
                #:ironclad
                #:lparallel)
   :serial t
   :components ((:file "tarhash")
+	       (:file "github-issues")
                (:file "package")
                (:file "config")
                (:file "logical-host")
@@ -40,4 +44,5 @@
                (:file "map-systems")
                (:file "update-client-version")
                (:file "descriptions")
-               (:file "ng-indexes")))
+               (:file "ng-indexes")
+	       (:file "git")))

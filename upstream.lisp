@@ -13,6 +13,16 @@
     :initarg :location
     :accessor location)))
 
+(defgeneric github-issue (object)
+  (:method (source)
+    (setf source (source-designator source))
+    (qlc-github-issues:matching-issue (name source))))
+
+(defgeneric github-issue-number (object)
+  (:method (source)
+    (setf source (source-designator source))
+    (getf (github-issue source) :number)))
+
 (defmethod base-directory ((source upstream-source))
   (pathname (directory-namestring (source-file source))))
 

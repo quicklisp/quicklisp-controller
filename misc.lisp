@@ -282,7 +282,7 @@
 
 (defun failtail-string (source)
   (with-output-to-string (*standard-output*)
-    (failtail source)))
+    (failtail source 10000)))
 
 (defun fix-url (url)
   (ppcre:regex-replace-all "%2F" url "/"))
@@ -390,7 +390,7 @@
          (ensure-directories-exist file)
          (with-open-file (stream file :direction :output)
            (format stream "~A ~A~%" type url))
-         (return-from add-project (update-and-crank name))))))
+         (return-from add-project (values name (update-and-crank name)))))))
 
 (defun update-project (url &key name type)
   (let ((name (or name (guess-project-name url)))
