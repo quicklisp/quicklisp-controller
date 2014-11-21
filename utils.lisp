@@ -194,7 +194,11 @@
     (format nil "~4,'0D-~2,'0D-~2,'0D" year month day)))
 
 
-(defgeneric base-directory (object))
+(defgeneric base-directory (object)
+  (:method ((object pathname))
+    (merge-pathnames object))
+  (:method ((object string))
+    (base-directory (pathname object))))
 
 (defgeneric relative-to (object pathname)
   (:documentation "Merge PATHNAME with the BASE-DIRECTORY of OBJECT.")
