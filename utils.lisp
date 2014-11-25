@@ -127,6 +127,16 @@
     (map nil #'write-line lines))
   (probe-file file))
 
+(defun save-forms (forms file)
+  (with-open-file (*standard-output* file
+                                     :direction :output
+                                     :if-exists :supersede)
+    (map nil 'print forms))
+  (probe-file file))
+
+(defun save-form (form file)
+  (save-forms (list form) file))
+
 (defun tarball-contents (file)
   (with-run-output (stream ("tar" "tzf" (native file)))
     (loop for line = (read-line stream nil)
