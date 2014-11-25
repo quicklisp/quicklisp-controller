@@ -251,18 +251,9 @@ if needed."
               (remove sub-system (rest result) :test 'string=)))
       (values result (probe-file win) (probe-file fail)))))
 
-(defun system-file-magic (system-name)
-  (ensure-system-file-index)
-  (let ((output-file #p"quicklisp-controller:tmp;sfm.txt"))
-    (run "system-file-magic"
-         (native (translate-logical-pathname *system-file-index-file*))
-         system-name
-         (native (translate-logical-pathname output-file)))
-    (rest (split-spaces (first-line-of output-file)))))
-
 (defun system-defined-systems (system-name)
   (ensure-system-file-index)
-  (ignore-errors (system-file-magic system-name)))
+  (ignore-errors (system-file-systems system-name)))
 
 (defun find-fake-winning-systems (source)
   (let ((fake-wins (relative-to source "wins.txt"))
@@ -330,10 +321,11 @@ if needed."
 (defun map-source-systems (source fun)
   (ensure-system-file-index)
   (setf source (source-designator source))
-  (dolist (system-file-name (system-names source))
-    (dolist (system (ignore-errors (system-file-magic system-file-name)))
-      (unless (blacklistedp source system)
-        (funcall fun system-file-name system)))))
+  (with-system-index
+    (dolist (system-file-name (system-names source))
+      (dolist (system (ignore-errors (system-defined-systems system-file-name)))
+        (unless (blacklistedp source system)
+          (funcall fun system-file-name system))))))
 
 (defun acceptable-system-name (name)
   (declare (ignore name))
