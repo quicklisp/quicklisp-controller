@@ -179,6 +179,10 @@
   (with-open-file (stream file)
     (read-line stream)))
 
+(defun first-form-of (file)
+  (with-open-file (stream file)
+    (read stream)))
+
 (defun file-size (file)
   (with-open-file (stream file)
     (file-length stream)))
