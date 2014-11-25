@@ -85,3 +85,6 @@
     (with-input-from-string (stream output)
       (loop for line = (read-line stream nil)
             while line collect line))))
+
+(defun run-output-line (command &rest args)
+  (first (apply #'run-output-lines command args )))
