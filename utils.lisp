@@ -51,7 +51,21 @@
                (error condition))))))))
 
 (defmacro in-temporary-directory (template-pathname &body body)
+  "Evaluate BODY with the POSIX working directory and
+*default-pathname-defaults set to a temporary directory specified by
+TEMPLATE-PATHNAME. The TEMPLATE-PATHNAME will be used to form a unique
+name in the filesystem."
   `(call-in-temporary-directory ,template-pathname (lambda () ,@body)))
+
+(defmacro in-anonymous-directory (&body body)
+  "Like IN-TEMPORARY-DIRECTORY, but does not require specifying a
+template pathname."
+  (let ((base (gensym)))
+    `(let ((,base #p "quicklisp-controller:tmp;anonymous;"))
+       (ensure-directories-exist ,base)
+       (with-posix-cwd ,base
+         (in-temporary-directory "anonymous/"
+           ,@body)))))
 
 (defun copy (from to)
   (run "cp" (native (truename from)) (native to)))
