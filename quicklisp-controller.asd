@@ -49,4 +49,5 @@
                (:file "descriptions")
                (:file "ng-indexes")
 	       (:file "git")
-	       (:file "html-failure-report")))
+	       (:file "html-failure-report")
+               (:file "recrank")))
