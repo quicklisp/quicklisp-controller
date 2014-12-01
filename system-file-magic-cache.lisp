@@ -30,7 +30,7 @@
 (defun find-system-file-systems (system)
   (let ((cache-file (system-file-magic-system-cache-file system)))
     (when (probe-file cache-file)
-      (first-form-of cache-file))))
+      (values (first-form-of cache-file) t))))
 
 (defun cache-system-file-systems (system systems)
   (let ((cache-file (system-file-magic-system-cache-file system)))
@@ -38,12 +38,19 @@
     (save-form systems cache-file)))
 
 (defun compute-system-file-systems (system)
-  (system-file-magic system))
+  (handler-case
+      (system-file-magic system)
+    (run-error ()
+      nil)))
 
 (defun system-file-systems (system)
-  (or (find-system-file-systems system)
-      (let ((systems (compute-system-file-systems system)))
-        (unless systems
-          (error "No systems in system file for ~S" system))
-        (cache-system-file-systems system systems)
-        systems)))
+  (multiple-value-bind (cached foundp)
+      (find-system-file-systems system)
+    (cond (foundp
+           cached)
+          (t
+           (let ((systems (compute-system-file-systems system)))
+             (unless systems
+               (warn "No systems in system file for ~S" system))
+             (cache-system-file-systems system systems)
+             systems)))))
