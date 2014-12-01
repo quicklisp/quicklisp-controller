@@ -233,6 +233,10 @@ template pathname."
   (:method (object pathname)
     (merge-pathnames pathname (base-directory object))))
 
+(defun relative-to-system (pathname)
+  (merge-pathnames pathname
+                   quicklisp-controller-config:*base-directory*))
+
 (defun skip (&optional condition)
   (declare (ignore condition))
   (let ((restart (find-restart 'skip)))

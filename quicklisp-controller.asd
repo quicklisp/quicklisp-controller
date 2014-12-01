@@ -51,3 +51,14 @@
 	       (:file "git")
 	       (:file "html-failure-report")
                (:file "recrank")))
+
+(defpackage #:quicklisp-controller-config
+  (:use)
+  (:export #:*base-directory*))
+
+(defvar quicklisp-controller-config:*base-directory*
+  (make-pathname :name nil
+                 :type nil
+                 :version nil
+                 :defaults (or *load-truename*
+                               *compile-file-truename*)))
