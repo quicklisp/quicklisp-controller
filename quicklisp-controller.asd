@@ -14,7 +14,9 @@
                #:function-cache
 	       #:trivial-utf-8
                #:ironclad
-               #:lparallel)
+               #:lparallel
+	       #:cl-who
+               #:project-info)
   :serial t
   :components ((:file "tarhash")
 	       (:file "github-issues")
@@ -25,6 +27,7 @@
                (:file "utils")
                (:file "setup")
                (:file "upstream")
+	       (:file "system-file-magic-cache")
                (:file "dist-cache")
                (:file "upstream-vcs")
                (:file "upstream-http")
@@ -45,4 +48,5 @@
                (:file "update-client-version")
                (:file "descriptions")
                (:file "ng-indexes")
-	       (:file "git")))
+	       (:file "git")
+	       (:file "html-failure-report")))

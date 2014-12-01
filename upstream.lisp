@@ -143,6 +143,13 @@
       (let ((project-name (pathname-project-name source-file)))
         (map-source fun (load-source-file project-name source-file))))))
 
+(defun collect-sources-if (fun)
+  (let ((result '()))
+    (map-sources (lambda (source)
+		   (when (funcall fun source)
+		     (push source result))))
+    (sort result 'string< :key 'name)))
+
 (defun pmap-sources (fun &optional (parallel-key #'source-host))
   (let ((dependency-tree (lparallel:make-ptree))
         (parallel-key-dependency (make-hash-table :test 'equal))

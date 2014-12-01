@@ -123,6 +123,9 @@
 
 (defun main (argv)
   (setf *print-pretty* nil)
+  (when (equalp (second argv) "--asdf-version")
+    (format t "~A~%" (asdf:asdf-version))
+    (sb-ext:exit :code 0))
   (sb-posix:setenv "SBCL_HOME"
                    (load-time-value
                     (directory-namestring sb-int::*core-string*))
