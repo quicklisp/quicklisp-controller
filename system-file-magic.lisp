@@ -54,10 +54,10 @@
 (defun main (argv)
   (setf *package* (find-package :keyword))
   (sb-ext:disable-debugger)
-  (sb-posix:setenv "SBCL_HOME"
-                   (load-time-value
-                    (directory-namestring sb-int::*core-string*))
-                   1)
+  ;; (sb-posix:setenv "SBCL_HOME"
+  ;;                  (load-time-value
+  ;;                   (directory-namestring sb-int::*core-string*))
+  ;;                  1)
   (destructuring-bind (index-file system-name output-file)
       (rest argv)
     (setf *systems* (load-asdf-system-table index-file))

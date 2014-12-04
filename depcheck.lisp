@@ -121,16 +121,37 @@
       (format stream "~A~{ ~A~}~%"
               system (compute-dependencies system-file system)))))
 
+(defun setenv (name value)
+  (let ((r
+         (sb-alien:alien-funcall
+          (sb-alien:extern-alien "setenv"
+                                 (sb-alien:function
+                                  sb-alien:int (sb-alien:c-string :not-null t)
+                                  (sb-alien:c-string :not-null t) sb-alien:int))
+          name value 1)))
+    (if (minusp r)
+        (error "setenv")
+        r)))
+
+(defun getenv (name)
+  (let ((r (sb-alien:alien-funcall
+            (sb-alien:extern-alien
+             "getenv"
+             (sb-alien:function (* sb-alien:char) (sb-alien:c-string :not-null t)))
+            name)))
+    (declare (type (sb-alien:alien (* sb-alien:char)) r))
+    (unless (sb-alien:null-alien r)
+      (sb-alien:cast r sb-alien:c-string))))
+
 (defun main (argv)
   (setf *print-pretty* nil)
   (when (equalp (second argv) "--asdf-version")
     (format t "~A~%" (asdf:asdf-version))
     (sb-ext:exit :code 0))
-  (sb-posix:setenv "SBCL_HOME"
-                   (load-time-value
-                    (directory-namestring sb-int::*core-string*))
-                   1)
-  (sb-posix:setenv "CC" "gcc" 1)
+  (setenv "SBCL_HOME"
+          (load-time-value
+           (directory-namestring sb-int::*core-string*)))
+  (setenv "CC" "gcc")
   (eval *load-op-wrapper*)
   (destructuring-bind (index project system dependency-file errors-file
                              &optional *metadata-required-p*)
@@ -139,7 +160,7 @@
     (with-open-file (*error-output* errors-file
                                     :if-exists :supersede
                                     :direction :output)
-      (unless (sb-posix:getenv "DEPCHECK_DEBUG")
+      (unless (getenv "DEPCHECK_DEBUG")
         (sb-ext:disable-debugger))
       (unwind-protect
            (magic project system dependency-file)

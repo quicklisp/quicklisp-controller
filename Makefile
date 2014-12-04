@@ -1,11 +1,11 @@
 all: system-file-magic depcheck
 
 depcheck: asdf.lisp depcheck.lisp
-	buildapp --dynamic-space-size 4000 --output depcheck --load asdf.lisp --require sb-aclrepl  --require sb-bsd-sockets --require sb-rt --require sb-cover --require sb-sprof --require sb-grovel --entry depcheck:main --require sb-introspect --require sb-cltl2 --require sb-posix --require sb-concurrency --load depcheck.lisp
+	buildapp --dynamic-space-size 4000 --output depcheck --load asdf.lisp --entry depcheck:main --load depcheck.lisp
 
 
 system-file-magic: asdf.lisp system-file-magic.lisp
-	buildapp --dynamic-space-size 4000 --output system-file-magic --load asdf.lisp --require sb-posix --require sb-grovel --load system-file-magic.lisp --entry system-file-magic:main
+	buildapp --dynamic-space-size 4000 --output system-file-magic --load asdf.lisp --load system-file-magic.lisp --entry system-file-magic:main
 
 install: system-file-magic depcheck
 	install -c -m 555 system-file-magic $(HOME)/bin
