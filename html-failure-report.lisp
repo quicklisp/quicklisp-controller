@@ -43,10 +43,10 @@
 
 (defun source-link (source)
   (let* ((primary (primary-system-file source))
-         (system-info (project-info::system-file-info primary))
+         (system-info (project-info:system-file-info primary))
          (location (location source)))
     (or (getf system-info :homepage)
-        (project-info::guess-website-by-location-pattern location))))
+        (project-info:guess-website-by-location-pattern location))))
 
 (defun substitute-if-matches (regex target substitution)
   (multiple-value-bind (start end anchor-starts anchor-ends)
@@ -89,11 +89,15 @@ the string is returned unchanged."
   (let* ((*default-pathname-defaults* (truename base))
          (files (append (directory "**/*.html")
                         (directory "**/*.css"))))
-    (dolist (file files)
-      (let ((key (format nil "~A~A"
-                         prefix
-                         (enough-namestring file))))
-        (upload-report-file file key)))))
+    (with-simple-restart (give-up "Stop uploading report")
+      (dolist (file files)
+        retry
+        (let ((key (format nil "~A~A"
+                           prefix
+                           (enough-namestring file))))
+          (with-simple-restart (try-again "Try uploading ~A again"
+                                          (file-namestring file))
+            (upload-report-file file key)))))))
 
 
 (defgeneric failure-data (object))
@@ -103,6 +107,7 @@ the string is returned unchanged."
 (defgeneric failure-report-url (object))
 (defgeneric failure-report-html-file (base object))
 
+(defgeneric stylesheet-path (object))
 (defgeneric write-html-failure-report (object file))
 (defgeneric write-html-failure-report-header (object stream))
 (defgeneric write-html-failure-report-index (object stream))
@@ -170,7 +175,10 @@ the string is returned unchanged."
     :reader failure-data)
    (source
     :initarg :source
-    :reader source)))
+    :reader source)
+   (stylesheet-path
+    :reader stylesheet-path
+    :initform "../failure-report.css")))
 
 (defmethod print-object ((object failing-source) stream)
   (print-unreadable-object (object stream :type t)
@@ -198,7 +206,10 @@ the string is returned unchanged."
 (defclass failure-report ()
   ((failure-data
     :initarg :failure-data
-    :reader failure-data)))
+    :reader failure-data)
+   (stylesheet-path
+    :initform "failure-report.css"
+    :reader stylesheet-path)))
 
 (defmethod print-object ((object failure-report) stream)
   (print-unreadable-object (object stream :type t)
@@ -257,8 +268,9 @@ the string is returned unchanged."
 
 (defmethod write-html-failure-report-header (object stream)
   (format stream "<html><head><title>~A</title>~
-                  <link rel=stylesheet href='style.css'></head><body>~%"
-          (name object))
+                  <link rel=stylesheet href='~A'></head><body>~%"
+          (name object)
+          (stylesheet-path object))
   (format stream "<h1>~A</h1>~%"
           (name object)))
 
@@ -348,9 +360,34 @@ the string is returned unchanged."
   (format stream "<p>~A~%" (versions-and-such)))
 
 (defun write-report (failure-report base)
+  (copy (relative-to-system "failure-report.css") base)
   (dolist (source (failure-data failure-report))
     (let ((output (failure-report-html-file base source)))
       (ensure-directories-exist output)
       (write-html-failure-report source output)))
   (write-html-failure-report failure-report (failure-report-html-file base failure-report)))
 
+(defun report-prefix (&optional differentiator)
+  "Generate a report prefix based on the current date and time."
+  (multiple-value-bind (second minute hour day month year)
+      (get-decoded-time)
+    (declare (ignore second minute hour))
+    (format nil "~4,'0D-~2,'0D-~2,'0D~@[-~A~]/"
+            year month day
+            differentiator)))
+
+(defun publish-failure-report (&key report-prefix
+                                 report-prefix-keyword
+                                 failure-report)
+  "Upload FAILURE-REPORT to the report S3 bucket. If FAILURE-REPORT is
+  NIL, a fresh failure report is generated."
+  (unless failure-report
+    (setf failure-report (failure-data t)))
+  (unless report-prefix
+    (setf report-prefix (report-prefix report-prefix-keyword)))
+  (in-anonymous-directory
+    (write-report failure-report *default-pathname-defaults*)
+    (upload-report *default-pathname-defaults* report-prefix))
+  (format nil "http://~A/~Afailure-report.html"
+          *failtail-bucket*
+          report-prefix))
