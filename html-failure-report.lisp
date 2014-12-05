@@ -365,7 +365,21 @@ the string is returned unchanged."
     (let ((output (failure-report-html-file base source)))
       (ensure-directories-exist output)
       (write-html-failure-report source output)))
-  (write-html-failure-report failure-report (failure-report-html-file base failure-report)))
+  (write-html-failure-report failure-report
+                             (failure-report-html-file base failure-report)))
+
+(defun publish-source-failure (source)
+  (setf source (source-designator source))
+  (let ((failing-source (find-failing-source source)))
+    (in-anonymous-directory
+      (let ((output (failure-report-html-file *default-pathname-defaults*
+                                              failing-source)))
+        (ensure-directories-exist output)
+        (write-html-failure-report failing-source output)
+        (let ((key (concatenate 'string (report-prefix)
+                                (enough-namestring output))))
+          (upload-report-file output key)
+          (format nil "http://~A/~A" *failtail-bucket* key))))))
 
 (defun report-prefix (&optional differentiator)
   "Generate a report prefix based on the current date and time."
@@ -375,6 +389,32 @@ the string is returned unchanged."
     (format nil "~4,'0D-~2,'0D-~2,'0D~@[-~A~]/"
             year month day
             differentiator)))
+
+(defun failure-report-index-urls ()
+  (flet ((indexp (name)
+           (and (search "failure-report.html" name)
+                (= 1 (count #\/ name)))))
+    (mapcar
+     (lambda (suffix)
+       (format nil "http://~A/~A" *failtail-bucket* suffix))
+     (sort
+      (map 'list #'zs3:name
+           (remove-if-not #'indexp
+                          (zs3:all-keys *failtail-bucket*
+                                        :credentials *failtail-credentials*)
+                          :key #'zs3:name))
+      #'string<))))
+
+(defun write-failure-report-index (stream)
+  (format stream "<html><head><title>Failure Reports</title></head><body><ul>")
+  (dolist (url (failure-report-index-urls))
+    (format stream "<li><a href='~A'>~a</a></li>" url url))
+  (format stream "</ul></body>"))
+
+(defun publish-failure-report-index (output-file)
+  (with-open-file (stream output-file :direction :output)
+    (write-failure-report-index stream))
+  (upload-report-file output-file "index.html"))
 
 (defun publish-failure-report (&key report-prefix
                                  report-prefix-keyword
@@ -386,6 +426,7 @@ the string is returned unchanged."
   (unless report-prefix
     (setf report-prefix (report-prefix report-prefix-keyword)))
   (in-anonymous-directory
+    (publish-failure-report-index "index.html")
     (write-report failure-report *default-pathname-defaults*)
     (upload-report *default-pathname-defaults* report-prefix))
   (format nil "http://~A/~Afailure-report.html"
