@@ -349,7 +349,8 @@
 
 (defun add-project (url &key name type)
   (let ((name (or name (guess-project-name url)))
-        (type (or type (guess-project-type url))))
+        (type (or type (guess-project-type url)))
+        (*system-metadata-required-p* t))
     (tagbody
      :retry
        (unless type
