@@ -2,7 +2,7 @@
 
 (in-package #:quicklisp-controller)
 
-(defun recrank (&key (update t) (report t)
+(defun recrank (&key (update t) (report t) (publish-failure-report t)
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
   (when update
@@ -18,7 +18,10 @@
   (ensure-what-wins-you-can)
   (when report
     (with-skipping
-      (mock-report :mail t))))
+      (mock-report :mail t))
+    (when publish-failure-report
+      (let ((url (publish-failure-report)))
+        (write-line url)))))
 
 (defun recrank-to-file (file &rest args &key &allow-other-keys )
   (with-open-file (*command-output* file
