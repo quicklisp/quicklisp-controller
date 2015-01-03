@@ -149,7 +149,20 @@
 
 (defvar *last-source* nil)
 
+(defun check-for-program (program)
+  (let ((process (ignore-errors (run-program program nil :search t :wait t))))
+    (unless process
+      (error "Could not run program ~S -- not found" program))))
+
+(defparameter *critical-programs*
+  '("cvs" "git" "darcs" "hg" "svn" "depcheck" "system-file-magic"))
+
+(defun check-critical-programs ()
+  (dolist (program *critical-programs*)
+    (check-for-program program)))
+
 (defun crank (&optional (source *last-source*))
+  (check-critical-programs)
   (setf *last-source* source)
   (update-system-file-index)
   (let ((wins (find-more-winning-systems source)))
