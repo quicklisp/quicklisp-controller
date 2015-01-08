@@ -36,7 +36,7 @@
 
 
 (defun apt-file-search (file)
-  (with-run-output (stream ("apt-file" "search" file))
+  (with-run-output (stream ("apt-file" "search" (format nil "/~A" file)))
     (let ((scanner (ppcre:create-scanner "^(.*?): (.*)"))
           (result '()))
       (loop for line = (read-line stream nil)
@@ -45,33 +45,46 @@
                 (setf result (acons key value result))))
       result)))
 
+(defun scan-group (scanner string)
+  (multiple-value-bind (matchp groups)
+      (ppcre:scan-to-strings scanner string)
+    (when matchp
+      (aref groups 0))))
+
 (defun failed-missing-libraries (failure-file)
   (let ((alternatives (ppcre:create-scanner ": Unable to load any"))
         (one-library (ppcre:create-scanner ": Unable to load foreign"))
-        (one-library-name (ppcre:create-scanner "Error opening shared object \"(.*?)\"")))
+        (one-library-name (ppcre:create-scanner "Error opening shared object \"(.*?)\""))
+	(header-name (ppcre:create-scanner "fatal error: (.*?): No such file")))
     (with-open-file (stream failure-file)
       (loop
-        (let ((line (read-line stream nil)))
-          (unless line
-            (return))
-          (cond ((ppcre:scan alternatives line)
-                 (return (read stream)))
-                ((ppcre:scan one-library line)
-                 (let ((next-line (read-line stream)))
-                   (ppcre:register-groups-bind (library) (one-library-name next-line)
-                     (return (list library)))))))))))
+	 (let ((line (read-line stream nil))
+	       value)
+	   (unless line
+	     (return))
+	   (cond ((ppcre:scan alternatives line)
+		  (return (read stream)))
+		 ((setf value (scan-group header-name line))
+		  (return (list value)))
+		 ((ppcre:scan one-library line)
+		  (let ((next-line (read-line stream)))
+		    (ppcre:register-groups-bind (library) (one-library-name next-line)
+		      (return (list library)))))))))))
 
 (defun missing-library-guess (library)
   (let ((alist (apt-file-search library)))
-    (flet ((cdr-length (thing)
-             (length (cdr thing))))
+    (flet ((library-length (thing)
+	     (+ (if (search "-dev" (car thing))
+		    -1000
+		    0)
+		(length (car thing)))))
       (when alist
-        (first (first (sort alist #'< :key #'cdr-length)))))))
+        (first (first (sort alist #'< :key #'library-length)))))))
 
 (defun missing-library-package (failure-file)
-  (let ((libraries (sort (failed-missing-libraries failure-file) #'< :key #'length)))
+  (let ((libraries (sort (remove-if-not 'stringp (failed-missing-libraries failure-file)) #'< :key #'length)))
     (when libraries
-      (missing-library-guess (first libraries)))))
+      (some #'missing-library-guess libraries))))
 
 (defun crawl-for-missing-libraries (wild)
   (let ((debian-packages '()))
@@ -83,3 +96,8 @@
 (defun missing-source-libraries (&optional (source *last-source*))
   (setf *last-source* source)
   (crawl-for-missing-libraries (build-relative "fail/fail_*.txt" source)))
+
+(defun apt-get-commands (packages)
+  (map nil (lambda (package)
+	     (format t "apt-get --yes install ~A~%" package))
+       packages))
