@@ -143,16 +143,36 @@
     (unless (sb-alien:null-alien r)
       (sb-alien:cast r sb-alien:c-string))))
 
+(defun getpid ()
+  (sb-alien:alien-funcall
+   (sb-alien:extern-alien
+    "getpid"
+    (sb-alien:function sb-alien:int))))
+
+(defun set-fasl-output-directory (directory)
+  (check-type directory pathname)
+  (asdf:clear-output-translations)
+  (asdf:initialize-output-translations
+   `(:output-translations
+     (t ,(merge-pathnames #P "**/*.*" directory))
+     :ignore-inherited-configuration
+     :disable-cache)))
+
 (defun main (argv)
   (setf *print-pretty* nil)
   (when (equalp (second argv) "--asdf-version")
     (format t "~A~%" (asdf:asdf-version))
     (sb-ext:exit :code 0))
+  (unless (getenv "DEPCHECK_DEBUG")
+    (sb-ext:disable-debugger))
   (setenv "SBCL_HOME"
           (load-time-value
            (directory-namestring sb-int::*core-string*)))
   (setenv "CC" "gcc")
   (eval *load-op-wrapper*)
+  ;; Not yet
+  ;;(set-fasl-output-directory (pathname (format nil "/tmp/depcheck/~D/"
+  ;;                                             (getpid))))
   (destructuring-bind (index project system dependency-file errors-file
                              &optional *metadata-required-p*)
       (rest argv)
@@ -160,8 +180,6 @@
     (with-open-file (*error-output* errors-file
                                     :if-exists :supersede
                                     :direction :output)
-      (unless (getenv "DEPCHECK_DEBUG")
-        (sb-ext:disable-debugger))
       (unwind-protect
            (magic project system dependency-file)
         (ignore-errors (close *error-output*))))
