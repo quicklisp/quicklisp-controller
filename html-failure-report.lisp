@@ -79,6 +79,9 @@ the string is returned unchanged."
 
 ;;; Posting to S3
 
+(defun report-publishing-enabled-p ()
+  (not (not (probe-file *failtail-credentials-file*))))
+
 (defun upload-report-file (file key)
   (let ((zs3:*credentials* *failtail-credentials*))
     (zs3:put-file file *failtail-bucket* key

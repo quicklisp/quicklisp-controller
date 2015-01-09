@@ -19,7 +19,7 @@
   (when report
     (with-skipping
       (mock-report :mail t))
-    (when publish-failure-report
+    (when (and publish-failure-report (report-publishing-enabled-p))
       (let ((url (publish-failure-report)))
         (write-line url)))))
 
