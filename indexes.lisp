@@ -7,6 +7,8 @@
 (defparameter *system-file-header*
   "# project system-file system-name [dependency1..dependencyN]")
 
+(defun slashed-system-p (system-name)
+  (position #\/ system-name))
 
 (defun unslashify-system-name (system-name)
   (let ((slash (position #\/ system-name)))
@@ -18,13 +20,38 @@
   (let ((unslashed (mapcar 'unslashify-system-name dependencies)))
     (remove system-name unslashed :test 'string=)))
 
+(defun find-resolved-winning-systems (source)
+  "Like FIND-WINNING-SYSTEMS, but each dependency with a slash is
+replaced by the dependencies of that slashed system, recursively."
+  (let* ((winners (find-winning-systems source))
+         (required (make-string-table)))
+    (labels ((required (system)
+               (gethash system required))
+             (knownp (system)
+               (nth-value 1 (gethash (unslashify-system-name system)
+                                     required)))
+             (resolve (system)
+               (if (slashed-system-p system)
+                   (if (knownp system)
+                       (mapcar #'resolve (required system))
+                       (unslashify-system-name system))
+                   system))
+             (resolve-one (system)
+               (remove-duplicates
+                (alexandria:flatten (mapcar #'resolve (required system)))
+                :test 'equal)))
+      (loop for (nil system-name . required-systems) in winners
+            do (setf (gethash system-name required) required-systems))
+      (loop for (system-file system-name . nil) in winners
+            collect (list* system-file system-name (resolve-one system-name))))))
+
 (defun write-system-index (file)
   (with-open-file (stream file :direction :output
                           :if-exists :supersede)
     (format stream "~A~%" *system-file-header*)
     (map-sources
      (lambda (source)
-       (let ((winners (find-winning-systems source)))
+       (let ((winners (find-resolved-winning-systems source)))
          (when winners
            (dolist (winner winners)
              (destructuring-bind (system-file system-name &rest dependencies)
