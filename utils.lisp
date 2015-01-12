@@ -26,6 +26,21 @@
     (declare (ignore second minute hour))
     (format nil "~4,'0D~2,'0D~2,'0D" year month day)))
 
+(defvar *in-temporary-directory*)
+(setf (documentation '*in-temporary-directory* 'variable)
+      "Bound to the current temporary directory of
+      CALL-IN-TEMPORARY-DIRECTORY for the duration of the call. Used
+      for checking that a pathname is being generated within a
+      directory that will be cleaned up.")
+
+(defun temporary-pathname (pathname)
+  (unless (boundp '*in-temporary-directory*)
+    (error "Not in a temporary directory scope"))
+  (values (ensure-directories-exist (merge-pathnames pathname))))
+
+(defun rm-rf (path)
+  (run "rm" "-rf" (native path)))
+
 (defun call-in-temporary-directory (template-pathname fun)
   (flet ((random-temporary ()
            (let* ((parts (pathname-directory template-pathname))
@@ -36,14 +51,15 @@
     (block nil
       (tagbody
        retry
-         (let ((path (random-temporary)))
+         (let* ((path (random-temporary))
+                (*in-temporary-directory* path))
            (handler-case
                (progn
                  (sb-posix:mkdir (native path) #o700)
                  (unwind-protect
                       (with-posix-cwd path
                         (return (funcall fun)))
-                   (ignore-errors (run "rm" "-rf" (native path)))))
+                   (ignore-errors (rm-rf path))))
              (sb-posix:syscall-error (condition)
                (when (= (sb-posix:syscall-errno condition)
                         sb-posix:eexist)
@@ -66,6 +82,11 @@ template pathname."
        (with-posix-cwd ,base
          (in-temporary-directory "anonymous/"
            ,@body)))))
+
+(defmacro ensure-in-anonymous-directory (&body body)
+  `(if (boundp '*in-temporary-directory*)
+       (progn ,@body)
+       (in-anonymous-directory ,@body)))
 
 (defun copy (from to)
   (run "cp" (native (truename from)) (native to)))
