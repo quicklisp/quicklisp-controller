@@ -4,12 +4,13 @@
 
 (defun system-file-magic (system-name)
   (ensure-system-file-index)
-  (let ((output-file #p"quicklisp-controller:tmp;sfm.txt"))
-    (run "system-file-magic"
-         (native (translate-logical-pathname *system-file-index-file*))
-         system-name
-         (native (translate-logical-pathname output-file)))
-    (rest (split-spaces (first-line-of output-file)))))
+  (ensure-in-anonymous-directory
+    (let ((output-file #p"sfm.txt"))
+      (run "system-file-magic"
+           (native (translate-logical-pathname *system-file-index-file*))
+           system-name
+           (native (translate-logical-pathname output-file)))
+      (rest (split-spaces (first-line-of output-file))))))
 
 (defun system-file-magic-cache-file (file)
   (let* ((digest (file-md5 file))

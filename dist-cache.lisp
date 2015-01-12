@@ -19,22 +19,22 @@
 
 (defgeneric cache-release-tarball (source)
   (:method (source)
-    (let ((temp (translate-logical-pathname
-                 "quicklisp-controller:tmp;cache-release-tarball.tgz")))
-      (ensure-directories-exist temp)
-      (make-release-tarball source temp)
-      (let* ((hash (content-hash temp))
-             (prefix (string-right-trim "/" (tarball-prefix temp)))
-             (directory (list :relative
-                              (project-name source)
-                              hash))
-             (pathname (merge-logical (make-pathname :name prefix
-                                                     :type "tgz"
-                                                     :directory directory)
-                                      "quicklisp-controller:dist;tar-cache;")))
-        (ensure-directories-exist pathname)
-        (copy temp pathname)
-        (probe-file pathname)))))
+    (in-anonymous-directory
+      (let ((temp (temporary-pathname "release-tarball.tgz")))
+        (ensure-directories-exist temp)
+        (make-release-tarball source temp)
+        (let* ((hash (content-hash temp))
+               (prefix (string-right-trim "/" (tarball-prefix temp)))
+               (directory (list :relative
+                                (project-name source)
+                                hash))
+               (pathname (merge-logical (make-pathname :name prefix
+                                                       :type "tgz"
+                                                       :directory directory)
+                                        "quicklisp-controller:dist;tar-cache;")))
+          (ensure-directories-exist pathname)
+          (copy temp pathname)
+          (probe-file pathname))))))
 
 (defgeneric ensure-cached-release-tarball (source)
   (:method (source)
@@ -207,9 +207,6 @@ if needed."
 (defvar *system-file-index-file*
   #p"quicklisp-controller:dist;system-file-index")
 
-(defvar *depcheck-fail-file*
-  (translate-logical-pathname #p"quicklisp-controller:tmp;depcheck-fail.txt"))
-
 (defun update-system-file-index ()
   (let ((table (asdf-systems-table)))
     (save-asdf-system-table table *system-file-index-file*)
@@ -217,14 +214,17 @@ if needed."
 
 (defvar *cached-system-file-index*)
 
+(defvar *system-file-index-lock* (sb-thread:make-mutex :name "system file index"))
+
 (defun ensure-system-file-index ()
-  (let ((file *system-file-index-file*))
-    (cond ((boundp '*cached-system-file-index*)
-           *cached-system-file-index*)
-          ((probe-file file)
-           (load-asdf-system-table file))
-          (t
-           (update-system-file-index)))))
+  (sb-thread:with-mutex (*system-file-index-lock*)
+    (let ((file *system-file-index-file*))
+      (cond ((boundp '*cached-system-file-index*)
+             *cached-system-file-index*)
+            ((probe-file file)
+             (load-asdf-system-table file))
+            (t
+             (update-system-file-index))))))
 
 (defmacro with-system-index (&body body)
   `(let ((*cached-system-file-index* (ensure-system-file-index)))
@@ -236,25 +236,26 @@ if needed."
 
 (defun depcheck (primary-system sub-system)
   (ensure-system-file-index)
-  (let ((win (translate-logical-pathname #p"quicklisp-controller:tmp;depcheck-win.txt"))
-        (fail *depcheck-fail-file*))
-    (ignore-errors (delete-file win))
-    (ignore-errors (delete-file fail))
-    (ignore-errors
-      (run "depcheck"
-           (native (translate-logical-pathname *system-file-index-file*))
-           primary-system sub-system win fail *system-metadata-required-p*))
-    (let* ((won (probe-file win))
-           (first-line (and won (ignore-errors (first-line-of win))))
-           (result (and first-line (split-spaces first-line))))
-      (unless result
-        (when won
-          (delete-file win)))
-      (when (member sub-system (rest result) :test 'string=)
-        (warn "~S is a dependency of itself in depcheck" sub-system)
-        (setf (rest result)
-              (remove sub-system (rest result) :test 'string=)))
-      (values result (probe-file win) (probe-file fail)))))
+  (ensure-in-anonymous-directory
+    (let ((win (temporary-pathname "depcheck-win.txt"))
+          (fail (temporary-pathname "depcheck-fail.txt")))
+      (ignore-errors (delete-file win))
+      (ignore-errors (delete-file fail))
+      (ignore-errors
+        (run "depcheck"
+             (native (translate-logical-pathname *system-file-index-file*))
+             primary-system sub-system win fail *system-metadata-required-p*))
+      (let* ((won (probe-file win))
+             (first-line (and won (ignore-errors (first-line-of win))))
+             (result (and first-line (split-spaces first-line))))
+        (unless result
+          (when won
+            (delete-file win)))
+        (when (member sub-system (rest result) :test 'string=)
+          (warn "~S is a dependency of itself in depcheck" sub-system)
+          (setf (rest result)
+                (remove sub-system (rest result) :test 'string=)))
+        (values result (probe-file win) (probe-file fail))))))
 
 (defun system-defined-systems (system-name)
   (ensure-system-file-index)
@@ -343,32 +344,32 @@ are loadable for SOURCE and return a list of lists. Each list has the
 structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
-  (let ((winners '())
-        (win-file (relative-to source "win")))
+  (let ((winners '()))
     (map-source-systems
      source
      (lambda (system-name system)
-       (let ((cached-winfile (winfail-file "win" source system-name system))
-             (cached-failfile (winfail-file "fail" source system-name system)))
-         (if (and (not recheck)
-                  (probe-file cached-winfile))
-             (push (split-spaces (first-line-of cached-winfile)) winners)
-             (multiple-value-bind (deps winfile failfile)
-                 (depcheck system-name system)
-               (declare (ignore winfile))
-               (cond (deps
-                      (ignore-errors (delete-file cached-failfile))
-                      (ensure-directories-exist cached-winfile)
-                      (save-lines (list (format nil "~A~{ ~A~}"
-                                                system-name deps))
-                                  cached-winfile)
-                      (push (cons system-name deps) winners))
-                     (failfile
-                      (ignore-errors (delete-file cached-winfile))
-                      (ensure-directories-exist cached-failfile)
-                      (copy failfile cached-failfile))
-                     (t
-                      (error "No deps and no failfile?"))))))))
+       (ensure-in-anonymous-directory
+         (let ((cached-winfile (winfail-file "win" source system-name system))
+               (cached-failfile (winfail-file "fail" source system-name system)))
+           (if (and (not recheck)
+                    (probe-file cached-winfile))
+               (push (split-spaces (first-line-of cached-winfile)) winners)
+               (multiple-value-bind (deps winfile failfile)
+                   (depcheck system-name system)
+                 (declare (ignore winfile))
+                 (cond (deps
+                        (ignore-errors (delete-file cached-failfile))
+                        (ensure-directories-exist cached-winfile)
+                        (save-lines (list (format nil "~A~{ ~A~}"
+                                                  system-name deps))
+                                    cached-winfile)
+                        (push (cons system-name deps) winners))
+                       (failfile
+                        (ignore-errors (delete-file cached-winfile))
+                        (ensure-directories-exist cached-failfile)
+                        (copy failfile cached-failfile))
+                       (t
+                        (error "No deps and no failfile?")))))))))
     winners))
 
 (defun find-more-winning-systems (source)
