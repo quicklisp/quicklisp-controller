@@ -115,11 +115,10 @@
     dependencies))
 
 (defun magic (system-file system trace-file)
-  (handler-bind ((sb-ext:defconstant-uneql #'continue))
-    (with-open-file (stream trace-file :direction :output
-                            :if-exists :supersede)
-      (format stream "~A~{ ~A~}~%"
-              system (compute-dependencies system-file system)))))
+  (with-open-file (stream trace-file :direction :output
+                          :if-exists :supersede)
+    (format stream "~A~{ ~A~}~%"
+            system (compute-dependencies system-file system))))
 
 (defun setenv (name value)
   (let ((r
