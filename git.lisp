@@ -38,3 +38,11 @@
       (run "git" "add" (pathname file))
       (run "git" "commit" "-m" message))
     (list :committed (name source) :with message)))
+
+(defun push-projects ()
+  (with-posix-cwd (translate-logical-pathname "quicklisp-controller:projects;")
+    (run "git" "push" "origin" "master")))
+
+(defun pull-projects ()
+  (with-posix-cwd (translate-logical-pathname "quicklisp-controller:projects;")
+    (run "git" "pull")))
