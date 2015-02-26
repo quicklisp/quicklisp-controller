@@ -429,9 +429,9 @@ the string is returned unchanged."
   (unless report-prefix
     (setf report-prefix (report-prefix report-prefix-keyword)))
   (in-anonymous-directory
-    (publish-failure-report-index "index.html")
     (write-report failure-report *default-pathname-defaults*)
-    (upload-report *default-pathname-defaults* report-prefix))
+    (upload-report *default-pathname-defaults* report-prefix)
+    (publish-failure-report-index "index.html"))
   (format nil "http://~A/~Afailure-report.html"
           *failtail-bucket*
           report-prefix))
