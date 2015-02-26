@@ -3,10 +3,11 @@
 (in-package #:quicklisp-controller)
 
 (defun recrank (&key (update t) (report t) (publish-failure-report t)
+                  parallel
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
   (when update
-    (update-what-you-can :file file)
+    (update-what-you-can :file file :parallel parallel)
     (when (and file *report-to-email*)
       (mail-file file
                  :subject "Quicklisp update failures"
