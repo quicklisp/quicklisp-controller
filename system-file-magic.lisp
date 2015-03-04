@@ -39,17 +39,30 @@
   (when *systems*
     (gethash (string name) *systems*)))
 
-(defun save-descriptions (system-names file)
-  (dolist (system-name system-names)
-    (let* ((system (asdf:find-system system-name))
-           (description (ignore-errors (asdf:system-description system))))
-      (when description
-        (with-open-file (stream file :direction :output
-                                :if-exists :append
-                                :if-does-not-exist :create)
-          (format stream "~S~%~%"
-                  (list (asdf:component-name system)
-                        description)))))))
+(defun system-metadata-sexp (system project-name)
+  (list :project project-name
+        :system (asdf:component-name system)
+        :description (asdf:system-description system)
+        :long-description (asdf:system-long-description system)
+        :license (asdf:system-license system)
+        :author (asdf:system-author system)
+        :depends-on (asdf:system-depends-on system)
+        :homepage (asdf:system-homepage system)
+        :bug-tracker (asdf:system-bug-tracker system)))
+
+(defun save-system-metadata (system-name project-name file)
+  (ensure-directories-exist file)
+  (let* ((system (asdf:find-system system-name))
+         (sexp (ignore-errors (system-metadata-sexp system project-name)))
+         (*print-pretty* nil)
+         (*print-escape* nil)
+         (*package* (find-package :cl)))
+    (when sexp
+      (with-open-file (stream file :direction :output
+                              :if-exists :rename-and-delete
+                              :if-does-not-exist :create)
+        (format stream "~S~%~%"
+                sexp)))))
 
 (defun main (argv)
   (setf *package* (find-package :keyword))
@@ -58,7 +71,8 @@
   ;;                  (load-time-value
   ;;                   (directory-namestring sb-int::*core-string*))
   ;;                  1)
-  (destructuring-bind (index-file system-name output-file)
+  (destructuring-bind (index-file system-name output-file
+                                  &optional project-name description-file)
       (rest argv)
     (setf *systems* (load-asdf-system-table index-file))
     (setf asdf:*system-definition-search-functions*
@@ -69,11 +83,9 @@
                             :direction :output
                             :if-exists :supersede)
       (let ((broadcast (make-broadcast-stream stream *standard-output*))
-            (system-names (system-file-systems system-name))
-            (description-file (make-pathname :name "descriptions"
-                                             :type "txt"
-                                             :defaults index-file)))
-        (save-descriptions system-names description-file)
+            (system-names (system-file-systems system-name)))
+        (when description-file
+          (save-system-metadata system-name project-name description-file))
         (format broadcast "~A~{ ~A~}~%"
                 system-name
                 system-names)))))
