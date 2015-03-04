@@ -25,6 +25,9 @@
          (push (find-system-file system-file-name) result)))
       result)))
 
+(defun source-system-names (source)
+  (mapcar 'pathname-name (source-system-files source)))
+
 (defun primary-system-file (source)
   (block nil
     (let ((files (source-system-files source)))
