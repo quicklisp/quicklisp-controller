@@ -384,6 +384,9 @@ the string is returned unchanged."
         (write-html-failure-report failing-source output)
         (let ((key (concatenate 'string (report-prefix)
                                 (enough-namestring output))))
+          (upload-report-file (relative-to-system "failure-report.css")
+                              (format nil "~Afailure-report.css"
+                                      (report-prefix)))
           (upload-report-file output key)
           (format nil "http://~A/~A" *failtail-bucket* key))))))
 
