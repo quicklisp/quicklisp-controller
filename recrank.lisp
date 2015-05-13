@@ -6,6 +6,7 @@
                   parallel
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
+  (preflight)
   (when update
     (update-what-you-can :file file :parallel parallel)
     (when (and file *report-to-email*)
