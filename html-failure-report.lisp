@@ -416,7 +416,7 @@ the string is returned unchanged."
 
 (defun write-failure-report-index (stream)
   (format stream "<html><head><title>Failure Reports</title></head><body><ul>")
-  (dolist (url (failure-report-index-urls))
+  (dolist (url (last (failure-report-index-urls) 20))
     (format stream "<li><a href='~A'>~a</a></li>" url url))
   (format stream "</ul></body>"))
 
