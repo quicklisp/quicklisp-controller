@@ -46,10 +46,10 @@
     (run-error ()
       nil)))
 
-(defun system-file-systems (system)
+(defun system-file-systems (system &key (use-cache t))
   (multiple-value-bind (cached foundp)
       (find-system-file-systems system)
-    (cond (foundp
+    (cond ((and foundp use-cache)
            cached)
           (t
            (let ((systems (compute-system-file-systems system)))
