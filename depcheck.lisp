@@ -162,6 +162,9 @@
   (when (equalp (second argv) "--asdf-version")
     (format t "~A~%" (asdf:asdf-version))
     (sb-ext:exit :code 0))
+  (when (equalp (second argv) "--sbcl-version")
+    (format t "~A~%" (lisp-implementation-version))
+    (sb-ext:exit :code 0))
   (unless (getenv "DEPCHECK_DEBUG")
     (sb-ext:disable-debugger))
   (setenv "SBCL_HOME"
