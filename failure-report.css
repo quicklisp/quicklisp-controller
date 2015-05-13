@@ -1,0 +1,15 @@
+.failing-system pre {
+    color: #111;
+    margin-left: 2em;
+    white-space: pre-wrap;
+    width: 75em;
+}
+
+.failing-system pre strong {
+    color: red;
+}
+    
+li.new-failure {
+    font-weight: bold;
+    color: red;
+}
