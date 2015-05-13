@@ -467,3 +467,22 @@
   (fresh-line)
   (dolist (fun *sanity-check-reports*)
     (funcall fun dist)))
+
+
+(defun rebuild-tools ()
+  (with-posix-cwd "~/src/quicklisp-controller/"
+    (run "make" "clean")
+    (run "make" "install")))
+
+(defun tool-versions-match ()
+  (let ((sbcl-version (run-output-line "sbcl" :version))
+        (depcheck-version (run-output-line "depcheck" :sbcl-version)))
+    (string= sbcl-version depcheck-version
+             :start1 (1+ (position #\Space sbcl-version)))))
+
+;; Should have a set of hooks, and probably a ~/.quicklisp-controller-init.lisp
+(defun preflight ()
+  (ignore-errors (run "dig" "wandrian.net" "a"))
+  (ignore-errors (run "dig" "method-combination.net" "a"))
+  (unless (tool-versions-match)
+    (rebuild-tools)))
