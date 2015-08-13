@@ -13,3 +13,20 @@ li.new-failure {
     font-weight: bold;
     color: red;
 }
+
+a.source-link {
+    font-weight: normal;
+    text-decoration: none;
+    color: #999;
+}
+
+span.source-location {
+    font-weight: normal;
+    text-decoration: none;
+    color: #999;
+}
+
+a.source-link:hover {
+    text-decoration: underline;
+    color: black;
+}
