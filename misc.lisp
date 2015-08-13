@@ -486,3 +486,26 @@
   (ignore-errors (run "dig" "method-combination.net" "a"))
   (unless (tool-versions-match)
     (rebuild-tools)))
+
+
+;;; Rewriting source.txt files
+
+(defun (setf first-line) (line file)
+  (with-open-file (stream file :direction :output
+                          :if-exists :rename-and-delete)
+    (write-line line stream)))
+
+(defun =location~ (substring)
+  (lambda (source)
+    (search substring (location source))))
+
+(defun rewrite-sources (match-fun new-location-fun)
+  (map-sources
+   (lambda (source)
+     (when (funcall match-fun source)
+       (unless (typep source 'git-source)
+         (error "Can't handle sources of any type but git"))
+       (let ((new-location (funcall new-location-fun (location source))))
+         (when new-location
+           (setf (first-line (source-file source))
+                 (format nil "git ~A" new-location))))))))
