@@ -44,7 +44,9 @@
                                (length (namestring pathname)))))
       (first files))))
 
-(defun source-link (source)
+(defgeneric source-link (source))
+
+(defmethod source-link ((source upstream-source))
   (let* ((primary (primary-system-file source))
          (system-info (project-info:system-file-info primary))
          (location (location source)))
@@ -85,11 +87,17 @@ the string is returned unchanged."
 (defun report-publishing-enabled-p ()
   (not (not (probe-file *failtail-credentials-file*))))
 
+(defun content-type (file)
+  (cond ((equalp (pathname-type file) "css")
+         "text/css")
+        (t
+         "text/html")))
+
 (defun upload-report-file (file key)
   (let ((zs3:*credentials* *failtail-credentials*))
     (zs3:put-file file *failtail-bucket* key
                   :public t
-                  :content-type "text/html")))
+                  :content-type (content-type file))))
 
 (defun upload-report (base prefix)
   (let* ((*default-pathname-defaults* (truename base))
@@ -191,6 +199,9 @@ the string is returned unchanged."
     (format stream "~A (~D failing system~:P)"
             (name (source object))
             (length (failure-data object)))))
+
+(defmethod source-link ((source failing-source))
+  (source-link (source source)))
 
 (defmethod new-failure-p ((object failing-source))
   (some #'new-failure-p (failure-data object)))
@@ -337,15 +348,20 @@ the string is returned unchanged."
          (old (remove-if #'new-failure-p sources)))
     (flet ((show (sources)
              (dolist (source sources)
-               (format stream "<li~@[ ~*class='new-failure'~]> ~A:</li>~%"
-                       (new-failure-p source)
-                       (name source))
-               (format stream "<ul>")
-               (dolist (system (failure-data source))
-                 (format stream "<li~@[ ~*class='new-failure'~]> <a href='~A'>~A</a></li>~%"
-                         (new-failure-p system)
-                         (failure-report-url system)
-                         (system-name system)))
+               (let ((link (source-link source)))
+                 (format stream "<li~@[ ~*class='new-failure'~]> ~A:<br>"
+                         (new-failure-p source)
+                         (name source))
+                 (if link
+                     (format stream "<a class='source-link' href='~A'>~A</a>" link link)
+                     (format stream "<span class='source-location'>~A</span>" (location (source source))))
+                 (format stream "</li>~%")
+                 (format stream "<ul>")
+                 (dolist (system (failure-data source))
+                   (format stream "<li~@[ ~*class='new-failure'~]> <a href='~A'>~A</a></li>~%"
+                           (new-failure-p system)
+                           (failure-report-url system)
+                           (system-name system))))
                (format stream "</ul>~%"))))
       (show new)
       (format stream "<br><br>")
