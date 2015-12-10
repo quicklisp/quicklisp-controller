@@ -46,7 +46,7 @@
 
 (defclass kmr-git-source (location-templated-source git-source) ()
   (:default-initargs
-   :location-template "http://git.b9.com/~A.git"))
+   :location-template "http://git.kpe.io/~A.git"))
 
 
 ;;; Walter C. Pelissero
