@@ -38,8 +38,11 @@
     (error "Not in a temporary directory scope"))
   (values (ensure-directories-exist (merge-pathnames pathname))))
 
+(defvar *rm-rf-debug* nil)
+
 (defun rm-rf (path)
-  (run "rm" "-rf" (native path)))
+  (unless *rm-rf-debug*
+    (run "rm" "-rf" (native path))))
 
 (defun call-in-temporary-directory (template-pathname fun)
   (flet ((random-temporary ()
