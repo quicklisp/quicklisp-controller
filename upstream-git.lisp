@@ -6,7 +6,7 @@
   ((tarball-target
     :initarg :tarball-target
     :accessor tarball-target
-    :initform "HEAD"))
+    :initform "master"))
   (:default-initargs
    :command "git"
    :checkout-subcommand "clone"
@@ -21,6 +21,11 @@
 
 (defmethod checkout-subcommand-arguments ((source branched-git-source))
   (append (call-next-method) (list "--branch" (branch-name source))))
+
+(defmethod vcs-update ((source tagged-git-source) checkout-directory)
+  (with-posix-cwd checkout-directory
+    (run "git" "fetch")
+    (run "git" "checkout" (tag-data source))))
 
 (defmethod vcs-update :after ((source git-source) checkout-directory)
   (with-posix-cwd checkout-directory
@@ -44,6 +49,15 @@
             tag
             (subseq commit 0 8))))
 
+(defgeneric target-ref (source)
+  (:documentation "The ref to use when archiving.")
+  (:method ((source git-source))
+    "HEAD")
+  (:method ((source branched-git-source))
+    (format nil "refs/heads/~A" (tarball-target source)))
+  (:method ((source tagged-git-source))
+    (format nil "refs/tags/~A" (tarball-target source))))
+
 (defmethod make-release-tarball ((source git-source) output-file)
   (let ((prefix (release-tarball-prefix source))
         (checkout (ensure-source-cache source)))
@@ -53,7 +67,7 @@
         (with-posix-cwd checkout
           (with-binary-run-output temptar
             (run "git" "archive" :format "tar" :prefix prefix
-                 (tarball-target source)))
+                 (target-ref source)))
           (run "gzip" "-vn9" temptar)
           (copy tempgz output-file))))))
 
