@@ -139,7 +139,7 @@
 (defun map-sources (fun)
   (with-simple-restart (abort "Give up entirely")
     (dolist (source-file
-              (directory #p"quicklisp-controller:projects;**;source.txt"))
+              (directory #p"quicklisp-controller:projects;projects;**;source.txt"))
       (let ((project-name (pathname-project-name source-file)))
         (map-source fun (load-source-file project-name source-file))))))
 
@@ -178,7 +178,7 @@
    (make-pathname :defaults "" :directory (list :relative :back project-name))
    (translate-logical-pathname
     (make-pathname :host "quicklisp-controller"
-                   :directory (list :absolute "projects" "stub")
+                   :directory (list :absolute "projects" "projects" "stub")
                    :name "source"
                    :type "txt"))))
 
@@ -187,6 +187,11 @@
          (file (probe-file (project-name-source-file name))))
     (when file
       (load-source-file name file))))
+
+(defun edit-source (name)
+  (let ((source (find-source name)))
+    (when source
+      (ed (source-file source)))))
 
 (defun source-designator (source)
   (if (typep source 'upstream-source)
