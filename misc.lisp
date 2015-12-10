@@ -358,7 +358,7 @@
 
 (defun project-source-filename (project-name)
   (merge-pathnames (make-pathname :directory (list :relative project-name))
-                   #p"~/src/quicklisp-projects/source.txt"))
+                   #p"~/src/quicklisp-projects/projects/source.txt"))
 
 (defun add-project (url &key name type)
   (let ((name (or name (guess-project-name url)))
