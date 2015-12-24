@@ -16,6 +16,7 @@
                #:ironclad
                #:lparallel
 	       #:cl-who
+               #:githappy
                #:project-info)
   :serial t
   :components ((:file "tarhash")
@@ -35,6 +36,7 @@
                (:file "upstream-cvs")
                (:file "upstream-darcs")
                (:file "upstream-git")
+               (:file "upstream-github")
                (:file "upstream-mercurial")
                (:file "upstream-svn")
                (:file "upstream-bzr")
