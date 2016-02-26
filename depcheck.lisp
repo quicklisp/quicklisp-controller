@@ -170,6 +170,7 @@
   (setenv "SBCL_HOME"
           (load-time-value
            (directory-namestring sb-int::*core-string*)))
+  #+nil
   (setenv "CC" "gcc")
   (eval *load-op-wrapper*)
   ;; Not yet
