@@ -97,7 +97,36 @@
   (setf *last-source* source)
   (crawl-for-missing-libraries (build-relative "fail/fail_*.txt" source)))
 
-(defun apt-get-commands (packages)
+(defun apt-get-commands (packages &key run)
   (map nil (lambda (package)
-	     (format t "apt-get --yes install ~A~%" package))
+	     (format t "apt-get --yes install ~A~%" package)
+             (when run
+               (run-program "/usr/bin/sudo"
+                            (list "/usr/bin/apt-get" "--yes" "install" package)
+                            :search nil
+                            :wait t
+                            :output t)))
        packages))
+
+(defun foreign-library-loop (&key run)
+  (let (source missing)
+    (tagbody
+     loop
+       (format t "~&> ")
+       (force-output)
+       (setf source (read))
+       (when (eql source :quit)
+         (go end))
+     retry
+       (crank source)
+       (setf missing (missing-source-libraries source))
+       (unless missing
+         (warn "No missing libraries for ~A, giving up" source)
+         (go loop))
+       (apt-get-commands missing :run run)
+       (format t "~&Press enter to retry~%")
+       (force-output)
+       (unless (equal (read-line) "")
+         (go loop))
+       (go retry)
+     end)))
