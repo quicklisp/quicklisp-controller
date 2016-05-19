@@ -16,6 +16,7 @@
                #:ironclad
                #:lparallel
 	       #:cl-who
+               #:ubiquitous
                #:githappy
                #:project-info)
   :serial t
