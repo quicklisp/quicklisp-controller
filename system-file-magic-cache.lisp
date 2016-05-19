@@ -14,14 +14,20 @@
            metadata-file)
       (rest (split-spaces (first-line-of output-file))))))
 
+(defvar *system-file-magic-relative-cache-directory*
+  (make-pathname :directory '(:relative ".cache" "system-file-magic")))
+
+
 (defun system-file-magic-cache-file (file)
   (let* ((digest (file-md5 file))
-         (pathname (make-pathname :directory '(:relative
-                                               ".cache"
-                                               "system-file-magic")
+         (pathname (make-pathname :defaults *system-file-magic-relative-cache-directory*
                                   :name digest
                                   :type "cache")))
     (merge-pathnames pathname (user-homedir-pathname))))
+
+(defun clear-system-file-magic-cache ()
+  (run "rm" "-rf" (merge-pathnames *system-file-magic-relative-cache-directory*
+                                   (user-homedir-pathname))))
 
 (defun system-file-magic-system-cache-file (system)
   (let* ((table (ensure-system-file-index))
