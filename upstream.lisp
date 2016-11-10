@@ -211,3 +211,20 @@
 
 (defun random-of-type (type)
   (random-element (coerce (all-of-type type) 'vector)))
+
+(defgeneric command (source)
+  (:method (source)
+    nil))
+
+(defun missing-commands ()
+  (let ((missing '())
+	(tried (make-string-table)))
+    (map-sources
+     (lambda (source)
+       (let ((command (command source)))
+	 (when command
+	   (unless (gethash command tried)
+	     (setf (gethash command tried) t)
+	     (unless (ignore-errors (run command "--version"))
+	       (push command missing)))))))
+    missing))
