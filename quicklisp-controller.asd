@@ -53,7 +53,8 @@
                (:file "ng-indexes")
 	       (:file "git")
 	       (:file "html-failure-report")
-               (:file "recrank")))
+               (:file "recrank")
+               (:file "irepl")))
 
 (defpackage #:quicklisp-controller-config
   (:use)

@@ -39,6 +39,22 @@
       (run "git" "commit" "-m" message))
     (list :committed (name source) :with message)))
 
+(defun set-issue-label (source label)
+  (setf source (source-designator source))
+  (let ((issue-number (github-issue-number source)))
+    (unless issue-number
+      (error "Can't find issue number for ~A" source))
+    (githappy:modify-repo-issue :owner "quicklisp"
+                                :repo "quicklisp-projects"
+                                :number issue-number
+                                :body (githappy:js "labels" (list label)))))
+
+(defun mark-canbuild (source)
+  (set-issue-label source "canbuild"))
+
+(defun mark-cantbuild (source)
+  (set-issue-label source "cantbuild"))
+
 (defun push-projects ()
   (with-posix-cwd (translate-logical-pathname "quicklisp-controller:projects;")
     (run "git" "push" "origin" "master")))

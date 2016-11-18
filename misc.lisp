@@ -360,7 +360,7 @@
   (merge-pathnames (make-pathname :directory (list :relative project-name))
                    #p"~/src/quicklisp-projects/projects/source.txt"))
 
-(defun add-project (url &key name type)
+(defun add-project (url &key name type data)
   (let ((name (or name (guess-project-name url)))
         (type (or type (guess-project-type url)))
         (*system-metadata-required-p* t))
@@ -380,7 +380,7 @@
              (go :retry)))
          (ensure-directories-exist file)
          (with-open-file (stream file :direction :output)
-           (format stream "~A ~A~%" type url))
+           (format stream "~A ~A~@[ ~A~]~%" type url data))
          (return-from add-project (values name (update-and-crank name)))))))
 
 (defun update-project (url &key name type)
