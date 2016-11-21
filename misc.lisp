@@ -370,6 +370,8 @@
          (error "Can't guess project type"))
        (unless name
          (error "Can't guess project name"))
+       (when (equal name "")
+	 (error "Name can't be empty"))
        (let ((file (project-source-filename name)))
          (restart-case
              (when (probe-file file)
