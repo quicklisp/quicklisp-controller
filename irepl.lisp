@@ -69,6 +69,10 @@
 (defun stripm (string)
   (delete #\Return string))
 
+(defun =jref (key)
+  (lambda (json)
+    (githappy:jref json key)))
+
 (defun irref (&rest key)
   (let ((value (githappy:jref (current-issue *irepl-state*) key)))
     (if (stringp value)
@@ -119,6 +123,15 @@
 (define-irepl-command previous
   (previous-issue *irepl-state*)
   (invoke-irepl-command 'show))
+
+(define-irepl-command skip
+  (let ((index (position-if-not (=jref '("labels" :* "name"))
+				(all-issues *irepl-state*))))
+    (if index
+	(progn
+	  (setf (issue-index *irepl-state*) index)
+	  (invoke-irepl-command 'show))
+	(format t "; No issue without labels~%"))))
 
 (defvar *irepl-guess-patterns*
   "https://github.com/")
