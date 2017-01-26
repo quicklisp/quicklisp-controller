@@ -344,7 +344,9 @@ are loadable for SOURCE and return a list of lists. Each list has the
 structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
-  (let ((winners '()))
+  (let ((winners '())
+	(timing-file (build-relative "timing.sexp" source))
+	(start-time (get-universal-time)))
     (map-source-systems
      source
      (lambda (system-name system)
@@ -370,6 +372,9 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
                         (copy failfile cached-failfile))
                        (t
                         (error "No deps and no failfile?")))))))))
+    (let ((end-time (get-universal-time)))
+      (save-forms (list (list :start-time start-time :end-time end-time))
+		  timing-file))
     winners))
 
 (defun find-more-winning-systems (source)
