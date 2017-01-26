@@ -158,6 +158,8 @@
      :disable-cache)))
 
 (defun main (argv)
+  (sb-alien:alien-funcall
+   (sb-alien:extern-alien "disable_lossage_handler" (function sb-alien:void)))
   (setf *print-pretty* nil)
   (when (equalp (second argv) "--asdf-version")
     (format t "~A~%" (asdf:asdf-version))
