@@ -478,7 +478,8 @@
 
 (defun tool-versions-match ()
   (let ((sbcl-version (run-output-line "sbcl" :version))
-        (depcheck-version (run-output-line "depcheck" :sbcl-version)))
+        (depcheck-version (ignore-errors (run-output-line "depcheck"
+							  :sbcl-version))))
     (string= sbcl-version depcheck-version
              :start1 (1+ (position #\Space sbcl-version)))))
 

@@ -2,6 +2,7 @@
 
 (defpackage #:quicklisp-controller
   (:use #:cl)
+  (:export #:setup-directories)
   (:shadowing-import-from #:sb-ext
                           #:run-program
                           #:process-exit-code
