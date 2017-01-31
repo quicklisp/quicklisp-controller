@@ -1,0 +1,2 @@
+QLC=/home/quicklisp/quicklisp/local-projects/quicklisp-controller/
+0 6 * * *     quicklisp sbcl --no-userinit --no-sysinit --non-interactive --load "$QLC"/daily-script.lisp >& "$QLC"/daily-quicklisp-script-output.txt
