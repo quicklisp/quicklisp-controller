@@ -1,3 +1,4 @@
+curl
 screen
 build-essential
 git-core
