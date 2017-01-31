@@ -472,7 +472,7 @@
 
 
 (defun rebuild-tools ()
-  (with-posix-cwd "~/src/quicklisp-controller/"
+  (with-posix-cwd (asdf:system-source-directory "quicklisp-controller")
     (run "make" "clean")
     (run "make" "install")))
 
