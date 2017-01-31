@@ -10,10 +10,11 @@
   (when update
     (update-what-you-can :file file :parallel parallel)
     (when (and file *report-to-email*)
-      (mail-file file
-                 :subject "Quicklisp update failures"
-                 :from *report-to-email*
-                 :to *report-to-email*)))
+      (unless (empty-file-p file)
+	(mail-file file
+		   :subject "Quicklisp update failures"
+		   :from *report-to-email*
+		   :to *report-to-email*))))
   (run "rm" "-rf"
        (native-namestring
         (translate-logical-pathname #p"quicklisp-controller:dist;")))
@@ -29,4 +30,4 @@
   (with-open-file (*command-output* file
                                     :direction :output
                                     :if-exists :supersede)
-    (apply #'recrank args)))
+    (apply #'recrank :file file args)))

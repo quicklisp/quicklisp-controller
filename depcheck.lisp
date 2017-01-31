@@ -114,11 +114,16 @@
           (sort (remove-if #'sbcl-contrib-p dependencies) #'string<))
     dependencies))
 
+(defun loaded-foreign-libraries ()
+  (mapcar 'sb-alien::shared-object-namestring sb-sys:*shared-objects*))
+
 (defun magic (system-file system trace-file)
   (with-open-file (stream trace-file :direction :output
                           :if-exists :supersede)
-    (format stream "~A~{ ~A~}~%"
-            system (compute-dependencies system-file system))))
+    (format stream "~A~{ ~A~}~{ FFI:~A~}~%"
+            system
+	    (compute-dependencies system-file system)
+	    (loaded-foreign-libraries))))
 
 (defun setenv (name value)
   (let ((r
@@ -175,9 +180,9 @@
   #+nil
   (setenv "CC" "gcc")
   (eval *load-op-wrapper*)
-  ;; Not yet
-  ;;(set-fasl-output-directory (pathname (format nil "/tmp/depcheck/~D/"
-  ;;                                             (getpid))))
+  (when (getenv "DEPCHECK_FRESH_FASLS")
+    (set-fasl-output-directory (pathname (format nil "/tmp/depcheck/~D/"
+						 (getpid)))))
   (destructuring-bind (index project system dependency-file errors-file
                              &optional *metadata-required-p*)
       (rest argv)

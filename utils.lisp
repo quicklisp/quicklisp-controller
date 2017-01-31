@@ -227,6 +227,11 @@ template pathname."
   (with-open-file (stream file)
     (read-line stream)))
 
+(defun file-lines (file)
+  (with-open-file (stream file)
+    (loop for line = (read-line stream nil)
+       while line collect line))) 
+
 (defun first-form-of (file)
   (with-open-file (stream file)
     (read stream)))
@@ -270,3 +275,6 @@ template pathname."
 (defmacro with-skipping (&body body)
   `(handler-bind ((error #'skip))
      ,@body))
+
+(defun empty-file-p (file)
+  (zerop (file-size file)))

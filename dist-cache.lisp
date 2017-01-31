@@ -268,10 +268,28 @@ if needed."
       (with-open-file (stream fake-wins)
         (ignore-errors (read stream))))))
 
-(defun filter-winners (winners)
+(defun ffi-library-dependency-p (dependency)
+  (mismatch "FFI:" dependency))
+
+(defun remove-ffi-deps (winners)
+  (loop for (file-name system-name . deps) in winners
+        collect
+        (list* file-name system-name (remove-if #'ffi-library-dependency-p
+						deps))))
+
+(defun keep-ffi-deps (winners)
+  (loop for (file-name system-name . deps) in winners
+        collect
+        (list* file-name system-name (remove-if-not #'ffi-library-dependency-p
+						    deps))))
+
+(defun remove-non-loadable-systems (winners)
+  "Remove systems from WINNERS that cannot be loaded directly, because
+their name does not match the system file name."
   (let ((system-file-names (loop for (file-name system-name . deps) in winners
                                  when (string= file-name system-name)
                                  collect file-name)))
+    
     (remove-if-not (lambda (winner)
                      (member (first winner) system-file-names
                              :test 'string=))
@@ -283,7 +301,20 @@ if needed."
       (let* ((winning-files (directory (build-relative "win/*.txt" source)))
              (winners (mapcar #'split-spaces
                               (mapcar #'first-line-of winning-files))))
-        (filter-winners winners))))
+        (remove-ffi-deps (remove-non-loadable-systems winners)))))
+
+(defun find-ffi-deps (source)
+  (ensure-system-file-index)
+  (or (find-fake-winning-systems source)
+      (let* ((winning-files (directory (build-relative "win/*.txt" source)))
+             (winners (mapcar #'split-spaces
+                              (mapcar #'first-line-of winning-files))))
+	(remove-duplicates
+	 (loop for (system-file system-name . deps) in winners
+	    for ffi-deps = (remove-if-not #'ffi-library-dependency-p deps)
+	    when ffi-deps
+	    collect (list* system-file ffi-deps))
+	 :test 'equalp))))
 
 (defun winning-system-files (source)
   (setf source (source-designator source))
@@ -337,6 +368,15 @@ if needed."
   (declare (ignore name))
   t)
 
+(defun timing-file (source)
+  (setf source (source-designator source))
+  (build-relative "timing.sexp" source))
+
+(defun timing-data (source)
+  (let ((file (timing-file source)))
+    (when (probe-file file)
+      (first-form-of file ))))
+
 (defun cache-winning-systems (source &key (recheck t))
   "A source may have multiple system files in it. Each system file
 might have multiple systems defined in it. Compute the systems which
@@ -345,7 +385,7 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
   (let ((winners '())
-	(timing-file (build-relative "timing.sexp" source))
+	(timing-file (timing-file source))
 	(start-time (get-universal-time)))
     (map-source-systems
      source
@@ -383,3 +423,42 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
 (defun ensure-winning-systems (source)
   (or (find-winning-systems source)
       (cache-winning-systems source)))
+
+(defun build-duration (source)
+  (destructuring-bind (&key start-time end-time)
+      (timing-data source)
+    (if start-time
+	(- end-time start-time)
+	-1)))
+
+(defun all-build-timing ()
+  (let ((sources (collect-sources-if (constantly t))))
+    (mapcar (lambda (source)
+	      (cons (name source) (build-duration source)))
+	    sources)))
+
+(defun beautify-ffi-dep (dep)
+  "Make an FFI dep prettier for display. Involves removing prefixes, suffixes, and cleaning up pathnames."
+  ;; Strip leading "FFI:"
+  (setf dep (ppcre:regex-replace "^FFI:" dep ""))
+  (setf dep (ppcre:regex-replace "gf$" dep ""))
+  (let ((substitution-string (if (search ".cache" dep)
+				 "<fasl-cache-directory>/"
+				 "<source-directory>/")))
+    (setf dep (ppcre:regex-replace "^.*/build-cache/.*?/.*?/"
+				   dep
+				   substitution-string))
+    dep))
+
+(defun all-ffi-deps ()
+  (let ((table (make-hash-table :test 'equalp)))
+    (map-sources
+     (lambda (source)
+       (let ((deps (find-ffi-deps source)))
+	 (when deps
+	   (loop for (system . deps) in deps
+	      do
+		(loop for dep in deps
+		   do
+		     (push system (gethash (beautify-ffi-dep dep) table))))))))
+    table))

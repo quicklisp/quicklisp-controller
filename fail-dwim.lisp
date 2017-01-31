@@ -36,14 +36,16 @@
 
 
 (defun apt-file-search (file)
-  (with-run-output (stream ("apt-file" "search" (format nil "/~A" file)))
-    (let ((scanner (ppcre:create-scanner "^(.*?): (.*)"))
-          (result '()))
-      (loop for line = (read-line stream nil)
-            while line do
-              (ppcre:register-groups-bind (key value) (scanner line)
-                (setf result (acons key value result))))
-      result)))
+  (let ((file (if (search "/" file) file
+		  (format nil "/~A" file))))
+    (with-run-output (stream ("apt-file" "search" file))
+      (let ((scanner (ppcre:create-scanner "^(.*?): (.*)"))
+	    (result '()))
+	(loop for line = (read-line stream nil)
+	   while line do
+	     (ppcre:register-groups-bind (key value) (scanner line)
+	       (setf result (acons key value result))))
+	result))))
 
 (defun scan-group (scanner string)
   (multiple-value-bind (matchp groups)
