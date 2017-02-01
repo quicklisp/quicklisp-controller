@@ -142,5 +142,7 @@ triplea
 gramps
 r-base-core
 libsmokeqt4-dev
+libqt4-dev
+libsmokeqtgui4-3
 libssl-dev
 libsnappy-dev
