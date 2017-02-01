@@ -1,3 +1,4 @@
+libusb-dev
 libpython2.7-dev
 curl
 cvs
@@ -79,7 +80,6 @@ libpuzzle1
 libssh2-1
 liblinear1
 libsvm3
-libusb-0.1-4
 libxml2-dev
 libc6
 libblas3
