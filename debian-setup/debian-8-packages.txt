@@ -104,7 +104,7 @@ libreadline6
 librrd-dev
 librsvg2-2
 zlib1g-dev
-libsane
+libsane-dev
 libsdl2-image-2.0-0
 libsdl2-ttf-2.0-0
 libslp-dev
