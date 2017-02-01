@@ -1,4 +1,6 @@
+libpython2.7-dev
 curl
+cvs
 screen
 build-essential
 git-core
@@ -11,6 +13,7 @@ libzmq-dev
 libssl1.0.0
 libyaml-dev
 libffi6
+libffi-dev
 libgsl0ldbl
 libsdl1.2debian
 libsdl-image1.2
