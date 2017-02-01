@@ -295,6 +295,17 @@ true. If there's a SHA1 mismatch, signal an error."
               (mapcar (=system-from-release old-dist)
                       removed)))))
 
+(defun newly-removed-releases ()
+  (let ((removed (nth-value 1 (system-differences "quicklisp" "mock"))))
+    (remove-duplicates
+     (mapcar (lambda (removed)
+	       ;; Either "project" or ("system" :from "project") syntax
+	       (if (consp removed)
+		   (third removed)
+		   removed))
+	     removed)
+     :test 'equalp)))
+
 (defun dist-differences (old-dist new-dist &key enumerator)
   "Report on the systems that differ between old-dist and new-dist."
   (flet ((dist-table (dist)
