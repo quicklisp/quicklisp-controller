@@ -163,11 +163,14 @@
 
 (defun crank (&optional (source *last-source*))
   (check-critical-programs)
+  (unless (source-designator source)
+    (warn "Not a known source -- ~S" source)
+    (return-from crank nil))
   (setf *last-source* source)
   (update-system-file-index)
   (let ((wins (find-more-winning-systems source)))
     (list :fails (missing-components source)
-          :wins wins)))
+	  :wins wins)))
 
 (defun source-pathname (project-name)
   (let ((directory `(:relative "quicklisp-controller"
