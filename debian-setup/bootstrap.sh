@@ -45,6 +45,12 @@ $QUICKLISP \
 echo "(require 'sb-posix)" >> .sbclrc
 echo "(sb-posix:setenv \"PATH\" \"/bin:/usr/bin:/usr/local/bin:$HOME/bin\" 1)" >> .sbclrc
 
+
+# Needed for trivial-ssh
+
+mkdir -p "$HOME"/.ssh
+
+
 # Emacs setup
 $QUICKLISP --eval '(ql:quickload "quicklisp-slime-helper")'
 
