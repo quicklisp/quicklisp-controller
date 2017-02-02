@@ -1,3 +1,4 @@
+swig
 libopenmpi-dev
 libusb-dev
 libpython2.7-dev
