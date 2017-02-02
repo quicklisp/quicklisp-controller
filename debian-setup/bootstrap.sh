@@ -42,6 +42,9 @@ $QUICKLISP \
      --eval '(quicklisp-controller:setup-directories "~/quicklisp-projects/")'
 
 
+echo "(require 'sb-posix)" >> .sbclrc
+echo "(sb-posix:setenv \"PATH\" \"/bin:/usr/bin:/usr/local/bin:$HOME/bin\" 1)" >> .sbclrc
+
 # Emacs setup
 $QUICKLISP --eval '(ql:quickload "quicklisp-slime-helper")'
 
