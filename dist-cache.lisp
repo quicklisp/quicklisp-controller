@@ -269,7 +269,9 @@ if needed."
         (ignore-errors (read stream))))))
 
 (defun ffi-library-dependency-p (dependency)
-  (mismatch "FFI:" dependency))
+  (string-equal "FFI:" dependency
+		    :end2 (min (length dependency)
+			       (length "FFI:"))))
 
 (defun remove-ffi-deps (winners)
   (loop for (file-name system-name . deps) in winners
