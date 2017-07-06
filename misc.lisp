@@ -464,9 +464,16 @@
       (format t "SELF-REFERENTIAL systems: ~A~%"
               self-referential))))
 
+(defun absent-dependencies-report (dist)
+  (let ((systems (provided-systems (dist dist))))
+    (unless (some #'required-systems systems)
+      (format t "NO DEPDENDENCIES FOR ANY SYSTEM IN DIST ~A!~%"
+	      dist))))
+
 (defparameter *sanity-check-reports*
   '(unprovided-required-systems-report
-    self-referential-systems-report))
+    self-referential-systems-report
+    absent-dependencies-report))
 
 (defun sanity-check-report (dist)
   (fresh-line)
@@ -505,13 +512,15 @@
   (lambda (source)
     (search substring (location source))))
 
-(defun rewrite-sources (match-fun new-location-fun)
+(defun http-to-https (source)
+  (let ((location (ppcre:regex-replace "http://" (location source) "https://")))
+    (format nil "https ~A" location)))
+
+(defun rewrite-sources (match-fun new-source-fun)
   (map-sources
    (lambda (source)
      (when (funcall match-fun source)
-       (unless (typep source 'git-source)
-         (error "Can't handle sources of any type but git"))
-       (let ((new-location (funcall new-location-fun (location source))))
-         (when new-location
+       (let ((new-source (funcall new-source-fun source)))
+         (when new-source
            (setf (first-line (source-file source))
-                 (format nil "git ~A" new-location))))))))
+                 new-source)))))))
