@@ -465,10 +465,12 @@
               self-referential))))
 
 (defun absent-dependencies-report (dist)
-  (let ((systems (provided-systems (dist dist))))
-    (unless (some #'required-systems systems)
-      (format t "NO DEPDENDENCIES FOR ANY SYSTEM IN DIST ~A!~%"
-	      dist))))
+  (let* ((systems (provided-systems (dist dist)))
+	 (no-required-systems (remove-if-not #'required-systems systems))
+	 (ratio (/ (length no-required-systems) (length systems))))
+    (unless (< 0.5 ratio )
+      (format t "ONLY ~$% OF SYSTEMS WITH DEPENDENCIES!"
+	      (* ratio 100)))))
 
 (defparameter *sanity-check-reports*
   '(unprovided-required-systems-report
