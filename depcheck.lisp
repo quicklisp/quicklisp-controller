@@ -33,15 +33,38 @@
   (and (<= 3 (length name))
        (string= name "sb-" :end1 3)))
 
+(defun evaluate-feature-expression (expression)
+  (labels ((evaluate-boolean (expression)
+	     (ecase (first expression)
+	       (:and (evaluate-and expression))
+	       (:or (evaluate-or expression))
+	       (:not (evaluate-not expression))))
+	   (evaluate-and (expression)
+	     (every #'evaluate-feature-expression (rest expression)))
+	   (evaluate-or (expression)
+	     (some #'evaluate-feature-expression (rest expression)))
+	   (evaluate-not (expression)
+	     (not (evaluate-feature-expression (second expression)))))
+    (cond ((keywordp expression)
+	   (not (not (position expression *features*))))
+	  ((consp expression)
+	   (evaluate-boolean expression))
+	  (t
+	   (error "Badly formed feature expression - ~S" expression)))))
+
 (defun dependency-list-dependency (list)
   (ecase (first list)
     ((:version :require) (second list))
-    (:feature (normalize-dependency (third list)))))
+    (:feature
+     (when (evaluate-feature-expression (second list))
+       (normalize-dependency (third list))))))
 
 (defun normalize-dependency (name)
   (cond ((and (consp name)
               (keywordp (first name)))
-         (string-downcase (dependency-list-dependency name)))
+	 (let ((dependency (dependency-list-dependency name)))
+	   (when dependency
+	     (string-downcase dependency))))
         ((or (symbolp name) (stringp name))
          (string-downcase name))
         (t (error "Don't know how to normalize ~S" name))))
@@ -55,7 +78,8 @@
             (prereqs (getf (cddr form) :defsystem-depends-on))
             (weak (getf (cddr form) :weakly-depends-on)))
         (setf deps (append deps prereqs weak))
-        (setf *direct-dependencies* (mapcar 'normalize-dependency deps))))
+        (setf *direct-dependencies* (remove nil
+					    (mapcar 'normalize-dependency deps)))))
     (funcall old-hook fun form env)))
 
 (defvar *in-find-system* nil)
