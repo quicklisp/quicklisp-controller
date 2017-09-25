@@ -45,7 +45,7 @@
 	     (some #'evaluate-feature-expression (rest expression)))
 	   (evaluate-not (expression)
 	     (not (evaluate-feature-expression (second expression)))))
-    (cond ((keywordp expression)
+    (cond ((symbolp expression)
 	   (not (not (position expression *features*))))
 	  ((consp expression)
 	   (evaluate-boolean expression))
