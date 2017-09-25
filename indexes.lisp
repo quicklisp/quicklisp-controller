@@ -263,10 +263,22 @@ true. If there's a SHA1 mismatch, signal an error."
         (let ((target-directory (ql-setup:qmerge "dists/mock/")))
           (run "rm" "-rf" target-directory)
           (make-mock-dist "mock" "9999-99-99" target-directory)))
-      (ql-dist:show-update-report (ql-dist:find-dist "quicklisp")
-                                  (ql-dist:find-dist "mock"))
-      (print (multiple-value-list (system-differences "quicklisp" "mock")))
-      (sanity-check-report "mock")))
+      (flet ((projects (dist)
+	       (mapcar 'name (provided-releases (ql-dist:find-dist dist)))))
+	(let ((ql-projects (projects "quicklisp"))
+	      (mock-projects (projects "mock")))
+	  (let ((new-projects (set-difference mock-projects ql-projects
+					      :test 'string=))
+		(removed-projects (set-difference ql-projects mock-projects
+						  :test 'string=)))
+	    (format t "New:~%~{  ~A~%~}~%" new-projects)
+	    (format t "Removed: ~%~{  ~A~%~}~%" removed-projects)))
+	(multiple-value-bind (new-systems removed-systems)
+	    (system-differences "quicklisp" "mock")
+	  (format t "New systems:~%  ~S~%" new-systems)
+	  (terpri)
+	  (format t "Removed systems:~%  ~S" removed-systems))
+	(sanity-check-report "mock"))))
   (when mail
     (mail-mock-report)))
 
