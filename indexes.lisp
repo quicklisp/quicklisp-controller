@@ -216,6 +216,22 @@ true. If there's a SHA1 mismatch, signal an error."
         (store "distinfo-subscription-url"
                (distinfo-subscription-url distinfo))))))
 
+(defun file-sha256 (file)
+  (string-downcase
+   (ironclad:byte-array-to-hex-string
+    (ironclad:digest-file :sha256 file))))
+
+(defun write-release-digests (dist output-file)
+  (with-open-file (stream output-file :direction :output)
+    (format stream "# key sha256~%")
+    (dolist (release (provided-releases dist))
+      (let* ((file (ql-dist:local-archive-file release))
+	     (sha256 (file-sha256 file)))
+	(format stream "release/~A ~A~%"
+		(ql-dist:name release)
+		sha256))))
+  (probe-file output-file))
+
 (defun upload-distinfo (distinfo)
   (let ((sysindex #p"quicklisp-controller:tmp;systems.txt")
         (relindex #p"quicklisp-controller:tmp;releases.txt")
@@ -245,7 +261,8 @@ true. If there's a SHA1 mismatch, signal an error."
     (map-sources
      (lambda (source)
        (let ((tarball (ensure-cached-release-tarball source)))
-         (copy tarball #p"archives/"))))))
+         (copy tarball #p"archives/"))))
+    (write-release-digests (dist name) "digests.txt")))
 
 (defun mail-mock-report ()
   (if *report-to-email*
