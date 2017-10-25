@@ -64,7 +64,7 @@
 (defmethod create-source-cache ((source http-source))
   (let ((cached (cache-object-file source)))
     (ensure-directories-exist cached)
-    (fetch (location source) cached)
+    (fetch-http-or-https (location source) cached)
     (probe-file cached)))
 
 (defclass http-bz2-source (http-source) ())
@@ -73,7 +73,7 @@
   (let ((cached (cache-object-file source)))
     (ensure-directories-exist cached)
     (in-temporary-directory "bz2/"
-      (fetch (location source) "temp.bz2")
+      (fetch-http-or-https (location source) "temp.bz2")
       (with-binary-run-output "temp.dat"
         (run "bunzip2" "-c" "temp.bz2"))
       (run "gzip" "temp.dat")
@@ -102,7 +102,7 @@
         (name (project-name source)))
     (ensure-directories-exist cached)
     (in-temporary-directory (format nil "~A/" name)
-      (fetch (location source) "naked.tgz")
+      (fetch-http-or-https (location source) "naked.tgz")
       (sb-posix:mkdir name #o755)
       (with-posix-cwd name
         (run "tar" "xzvf" "../naked.tgz"))
@@ -117,3 +117,9 @@
     (ensure-directories-exist cached)
     (curl (location source) cached)
     (probe-file cached)))
+
+(defun fetch-http-or-https (loc file)
+  (handler-case
+      (fetch loc file)
+    (ql-http:https-redirect ()
+      (curl loc file))))
