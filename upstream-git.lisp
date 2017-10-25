@@ -19,6 +19,9 @@
 (defclass branched-git-source (tagged-mixin git-source)
   ((tag-data :reader branch-name :reader tarball-target)))
 
+(defclass git-at-commit-source (tagged-git-source)
+  ((tag-data :reader commit :reader tarball-target)))
+
 (defmethod checkout-subcommand-arguments ((source branched-git-source))
   (append (call-next-method) (list "--branch" (branch-name source))))
 
@@ -56,7 +59,9 @@
   (:method ((source branched-git-source))
     (format nil "refs/heads/~A" (tarball-target source)))
   (:method ((source tagged-git-source))
-    (format nil "refs/tags/~A" (tarball-target source))))
+    (format nil "refs/tags/~A" (tarball-target source)))
+  (:method ((source git-at-commit-source))
+    (format nil "~A" (commit source))))
 
 (defmethod make-release-tarball ((source git-source) output-file)
   (let ((prefix (release-tarball-prefix source))
