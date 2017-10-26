@@ -50,19 +50,19 @@
         :homepage (asdf:system-homepage system)
         :bug-tracker (asdf:system-bug-tracker system)))
 
-(defun save-system-metadata (system-name project-name file)
+(defun save-system-metadata (system-names project-name file)
   (ensure-directories-exist file)
-  (let* ((system (asdf:find-system system-name))
-         (sexp (ignore-errors (system-metadata-sexp system project-name)))
-         (*print-pretty* nil)
-         (*print-escape* nil)
-         (*package* (find-package :cl)))
-    (when sexp
-      (with-open-file (stream file :direction :output
-                              :if-exists :rename-and-delete
-                              :if-does-not-exist :create)
-        (format stream "~S~%~%"
-                sexp)))))
+  (with-open-file (stream file :direction :output
+                          :if-exists :rename-and-delete
+                          :if-does-not-exist :create)
+    (let ((*package* (find-package :cl)))
+      (pprint (loop
+                 for system-name in system-names
+                 collecting (cons system-name
+                                  (ignore-errors
+                                    (system-metadata-sexp (asdf:find-system system-name)
+                                                          project-name))))
+              stream))))
 
 (defun main (argv)
   (setf *package* (find-package :keyword))
@@ -83,9 +83,9 @@
                             :direction :output
                             :if-exists :supersede)
       (let ((broadcast (make-broadcast-stream stream *standard-output*))
-            (system-names (system-file-systems system-name)))
+            (system-names (reverse (system-file-systems system-name))))
         (when description-file
-          (save-system-metadata system-name project-name description-file))
+          (save-system-metadata system-names project-name description-file))
         (format broadcast "~A~{ ~A~}~%"
                 system-name
                 system-names)))))
