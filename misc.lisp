@@ -538,11 +538,13 @@
        (dolist (system-file-name (system-names source))
          (let ((metadata-file (make-pathname :defaults (source-file source)
                                              :name (format nil "~A.metadata" system-file-name)
-                                             :type "sexp")))
-           (format t "writing system metadata to ~A~%" metadata-file)
-           (system-file-magic (car (last (system-nonblacklisted-systems source system-file-name)))
-                              (project-name source)
-                              metadata-file)))
+                                             :type "sexp"))
+               (system-name (car (last (system-nonblacklisted-systems source system-file-name)))))
+           (when system-name
+             (format t "writing system metadata to ~A~%" metadata-file)
+             (system-file-magic system-name
+                                (project-name source)
+                                metadata-file))))
        (flet ((trim-prefix (file)
                 (subseq file (1+ (position #\/ file)))))
          (let ((metadata-file (make-pathname :defaults (source-file source)
