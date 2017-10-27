@@ -529,6 +529,18 @@
 
 ;;; write metadata.sexp files
 
+(defun compute-system-deps (system)
+  (getf (cdr system) :depends-on))
+(defun compute-source-deps (source)
+  (reduce #'union (mapcar #'compute-system-deps
+                          (cdr source))))
+(defun compute-deps (sources)
+  (let ((requires (reduce #'union
+                          (mapcar #'compute-source-deps
+                                  sources)))
+        (provides (mapcar #'car sources)))
+    (set-difference requires provides :test #'equal)))
+
 (defun write-metadata-sexps ()
   (ensure-system-file-index)
   (with-skipping
@@ -575,7 +587,7 @@
                                :author (getf primary-system-metadata :author)
                                :homepage (getf primary-system-metadata :homepage)
                                :bug-tracker (getf primary-system-metadata :bug-tracker)
-                               :depends-on (getf primary-system-metadata :depends-on)
+                               :depends-on (compute-deps systems)
                                :release-url url
                                :size (file-size tarball)
                                :file-md5 (file-md5 tarball)
