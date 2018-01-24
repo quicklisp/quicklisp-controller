@@ -26,6 +26,10 @@ span.source-location {
     color: #999;
 }
 
+span.boring {
+    display: none;
+}
+
 a.source-link:hover {
     text-decoration: underline;
     color: black;

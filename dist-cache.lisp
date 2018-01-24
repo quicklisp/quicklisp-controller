@@ -346,6 +346,9 @@ their name does not match the system file name."
   directory component, pathname-name, or pathname-type."
   (substitute #\_ #\/ string))
 
+(defun decode-string-from-filesystem (string)
+  (substitute #\/ #\_ string))
+
 (defun winfail-file (winfail source system-file system)
   (let ((name (format nil "~A_~A_~A_~A"
                       winfail
@@ -386,6 +389,8 @@ are loadable for SOURCE and return a list of lists. Each list has the
 structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (ensure-system-file-index)
   (setf source (source-designator source))
+  (when (fresh-cache-p source)
+    (clear-fasl-cache))
   (let ((winners '())
 	(timing-file (timing-file source))
 	(start-time (get-universal-time)))

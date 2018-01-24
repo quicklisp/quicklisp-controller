@@ -1,7 +1,8 @@
 ;;;; package.lisp
 
 (defpackage #:quicklisp-controller
-  (:use #:cl)
+  (:use #:cl
+	#:westbrook)
   (:export #:setup-directories)
   (:shadowing-import-from #:sb-ext
                           #:run-program

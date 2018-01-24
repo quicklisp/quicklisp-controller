@@ -90,6 +90,8 @@ the string is returned unchanged."
 (defun content-type (file)
   (cond ((equalp (pathname-type file) "css")
          "text/css")
+	((equalp (pathname-type file) "rss")
+	 "application/rss+xml")
         (t
          "text/html")))
 
@@ -119,6 +121,12 @@ the string is returned unchanged."
 (defgeneric system-name (object))
 (defgeneric system-file-name (object))
 (defgeneric failure-report-url (object))
+(defgeneric full-failure-report-url (object)
+  (:method (object)
+    (format nil "http://~A/~A~A"
+	    *failtail-bucket*
+	    (report-prefix)
+	    (failure-report-url object))))
 (defgeneric failure-report-html-file (base object))
 
 (defgeneric stylesheet-path (object))
@@ -186,7 +194,7 @@ the string is returned unchanged."
 (defclass failing-source ()
   ((failure-data
     :initarg :failure-data
-    :reader failure-data)
+    :accessor failure-data)
    (source
     :initarg :source
     :reader source)
@@ -223,7 +231,7 @@ the string is returned unchanged."
 (defclass failure-report ()
   ((failure-data
     :initarg :failure-data
-    :reader failure-data)
+    :accessor failure-data)
    (stylesheet-path
     :initform "failure-report.css"
     :reader stylesheet-path)))
@@ -239,23 +247,70 @@ the string is returned unchanged."
 (defmethod name ((object failure-report))
   "Failure report")
 
+(defun parse-failure-file-name (failure-file)
+  "Parse FAILURE-FILE's namestring into a FAILING-SYSTEM object; if no
+source is found that matches the filename, return nil."
+  ;; Syntax is:
+  ;;   fail_<project>_<system-file-name>_<failing-system-escaped-name>.txt
+  (ppcre:register-groups-bind (source-name system-file-name failing-system)
+      ("^fail_(.*?)_(.*?)_(.*?)\\.txt"
+       (file-namestring failure-file))
+    ;; It's possible that the logfile belongs to a source that is no
+    ;; longer part of Quicklisp (due to renaming, removal, or whatever
+    ;; reason), so don't try to make a failing-source in that case.
+    (let ((source (find-source source-name)))
+      (when source
+	(make-instance 'failing-system
+		       :source (find-source source-name)
+		       :failure-log-file failure-file
+		       :system-file-name system-file-name
+		       :system-name (decode-string-from-filesystem
+				     failing-system))))))
+
+(defun failing-source-log-files ()
+  (let* ((base (translate-logical-pathname "quicklisp-controller:dist;build-cache;"))
+	 (fail-wild (merge-pathnames "**/fail_*_*_*.txt" base)))
+    (directory fail-wild)))
+
+(defun failing-systems ()
+  (remove nil
+	  (mapcar #'parse-failure-file-name
+		  (failing-source-log-files))))
+
+(defun failure-log-failure-report ()
+  "Scan the failure log files of all projects to produce a failure report."
+  (let ((systems (make-hash-table :test 'equal)))
+    (flet ((fsource (source)
+	     (or (gethash (name source) systems)
+		 (setf (gethash (name source) systems)
+		       (make-instance 'failing-source
+				      :failure-data nil
+				      :source source)))))
+      (let ((table (make-hash-table :test 'eq))
+	    (systems (failing-systems))
+	    (report (make-instance 'failure-report
+				   :failure-data '())))
+	(dolist (system systems)
+	  (let ((key (fsource (source system))))
+	    (push system (gethash key table))))
+	(maphash (lambda (failing-source failing-systems)
+		   (setf (failure-data failing-source) failing-systems)
+		   (push failing-source (failure-data report)))
+		 table)
+	report))))
+
 (defmethod failure-data ((object (eql t)))
-  (let ((sources
-         (mapcan (lambda (source)
-                   (let ((failing-source
-                          (find-failing-source source)))
-                     (when failing-source
-                       (list failing-source))))
-                 (all-of-type t))))
-    (make-instance 'failure-report
-                   :failure-data (sort sources
-                                       #'string<
-                                       :key #'name))))
+  (failure-log-failure-report))
+
+(defparameter *log-lines-that-are-boring*
+  (mapcar 'ppcre:create-scanner
+	  '("^WARNING:")))
 
 (defparameter *log-lines-to-highlight*
   (mapcar 'ppcre:create-scanner
           '("^; caught (WARNING|ERROR):"
             " READ error during"
+	    "^Backtrace for"
             "^Unhandled")))
 
 (defparameter *failure-log-reconstitution-patterns*
@@ -267,21 +322,12 @@ the string is returned unchanged."
 
 (defun highlighted-log-line-p (line)
   (loop for scanner in *log-lines-to-highlight*
-        thereis (ppcre:scan scanner line)))
+     thereis (ppcre:scan scanner line)))
 
-(defun highlight-log-lines (input-stream output-stream)
-  (loop for line = (read-line input-stream nil)
-        while line
-        do
-        (setf line (cl-who:escape-string line))
-        (setf line (failure-log-reconstitute-line line))
-        (if (highlighted-log-line-p line)
-            (progn
-              (write-string "<strong>" output-stream)
-              (write-string line output-stream)
-              (write-string "</strong>" output-stream))
-            (write-string line output-stream))
-        (terpri output-stream)))
+(defun boring-log-line-p (line)
+  (loop for scanner in *log-lines-that-are-boring*
+       thereis (ppcre:scan scanner line)))
+
 
 (defmethod write-html-failure-report-header (object stream)
   (format stream "<html><head><title>~A</title>~
@@ -317,14 +363,16 @@ the string is returned unchanged."
     (loop for line = (read-line log-stream nil)
         while line
         do
-        (setf line (cl-who:escape-string line))
-        (if (highlighted-log-line-p line)
-            (progn
-              (write-string "<strong>" stream)
-              (write-string line stream)
-              (write-string "</strong>" stream))
-            (write-string line stream))
-        (terpri stream)))
+	 (setf line (cl-who:escape-string line))
+	 (cond ((highlighted-log-line-p line)
+		(write-string "<strong>" stream)
+		(write-string line stream)
+		(write-string "</strong>" stream)
+		(terpri stream))
+	       ((boring-log-line-p line)
+		(format stream "<span class='boring'>~A~%</span>" line))
+	       (t
+		(write-line line stream)))))
   (format stream "</pre>")
   (format stream "</div>~%"))
 

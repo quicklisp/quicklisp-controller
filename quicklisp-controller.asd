@@ -18,7 +18,8 @@
 	       #:cl-who
                #:ubiquitous
                #:githappy
-               #:project-info)
+               #:project-info
+	       #:westbrook)
   :serial t
   :components ((:file "tarhash")
 	       (:file "github-issues")
@@ -28,6 +29,7 @@
                (:file "commands")
                (:file "utils")
                (:file "setup")
+	       (:file "provenance")
                (:file "upstream")
 	       (:file "system-file-magic-cache")
                (:file "dist-cache")
@@ -53,6 +55,7 @@
                (:file "ng-indexes")
 	       (:file "git")
 	       (:file "html-failure-report")
+	       (:file "rss-failure-feeds")
                (:file "recrank")
                (:file "irepl")))
 

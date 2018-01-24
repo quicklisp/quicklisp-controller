@@ -2,7 +2,8 @@
 
 (in-package #:quicklisp-controller)
 
-(defun recrank (&key (update t) (report t) (publish-failure-report t)
+(defun recrank (&key (update t) (report t) (feeds t)
+		  (publish-failure-report t)
                   parallel
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
@@ -23,7 +24,12 @@
     (with-skipping
       (mock-report :mail t))
     (when (and publish-failure-report (report-publishing-enabled-p))
-      (let ((url (publish-failure-report)))
+      (let* ((report (failure-data t))
+	     (url (publish-failure-report :failure-report report)))
+	(when feeds
+	  (in-anonymous-directory
+	    (write-feeds report "feeds/")
+	    (publish-feeds "feeds/")))
         (write-line url)))))
 
 (defun recrank-to-file (file &rest args &key &allow-other-keys )
