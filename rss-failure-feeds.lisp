@@ -32,6 +32,7 @@
     "(hexstreamsoft)"
     "(marijnh)averbeke"
     "(maraist)"
+    "(hu\\.dwim)"
     "(lichteblau)"
     "gitlab.common-lisp.net/(.*?)/"))
 
@@ -44,8 +45,8 @@
     (when (and start (plusp (length starts)))
       (subseq target (aref starts 0) (aref ends 0)))))
 
-(defun group-name (failing-source)
-  (let ((location (location (source failing-source))))
+(defun group-name (source)
+  (let ((location (location source)))
     (dolist (pattern *location-grouping-patterns*)
       (let ((group (scan-first-register pattern location)))
 	(when group
@@ -87,6 +88,8 @@
   (format nil "http://report.quicklisp.org/rss/~A.rss" group))
 
 (defun generate-feeds (failure-report)
+  "Return a hash-table of feeds, keyed by feed group name. Special key
+'all' has all feeds."
   (let ((feeds (make-string-table)))
     (labels ((ensure-feed (title link)
 	       (let ((feed (gethash title feeds)))
@@ -100,10 +103,17 @@
 					  :description
 					  (format nil "Quicklisp build failures for ~S"
 						  title)))))))
+      ;; Generate empty feeds for all sources
+      (map-sources
+       (lambda (source)
+	 (let ((group-name (group-name source)))
+	   (when group-name
+	     (ensure-feed group-name (feed-link group-name))))))
+      ;; Populate failing sources
       (let ((all (ensure-feed "all" (feed-link "all"))))
 	(dolist (source (failure-data failure-report) feeds)
 	  (let* ((item (failing-source-item source))
-		 (group-name (group-name source)))
+		 (group-name (group-name (source source))))
 	    (push item (items all))
 	    (when group-name
 	      (push item (items (ensure-feed group-name (feed-link group-name)))))))))))
