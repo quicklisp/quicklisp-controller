@@ -278,3 +278,18 @@ template pathname."
 
 (defun empty-file-p (file)
   (zerop (file-size file)))
+
+(defun escape-html (string)
+  (with-output-to-string (s)
+    (loop for char across string
+       do
+	 (case char
+	   (#\&
+	    (write-string "&amp;" s))
+	   (#\<
+	    (write-string "&lt;" s))
+	   (#\>
+	    (write-string "&gt;" s))
+	   (#\Nul
+	    (write-string "[nul]" s))
+	   (t (write-char char s))))))
