@@ -85,9 +85,8 @@
           (with-binary-run-output temptar
             (run "git" "archive" :format "tar" :prefix prefix
                  (target-ref source)))
-          (without-run-output
-            (run "git" "submodule" "foreach" :recursive :quiet
-                 (submodule-git-archive-command prefix tempsub)))
+          (run "git" "submodule" "foreach" :recursive :quiet
+               (submodule-git-archive-command prefix tempsub))
           (dolist (archive (directory (merge-pathnames "**/*.tar" tempsub)))
             (run "tar" "Af" temptar archive))
           (run "gzip" "-vn9" temptar)
