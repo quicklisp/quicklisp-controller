@@ -261,6 +261,10 @@ if needed."
   (ensure-system-file-index)
   (ignore-errors (system-file-systems system-name)))
 
+(defun system-nonblacklisted-systems (source system-name)
+  (remove-if (lambda (system-name) (blacklistedp source system-name))
+             (system-defined-systems system-name)))
+
 (defun find-fake-winning-systems (source)
   (let ((fake-wins (relative-to source "wins.txt"))
         (*read-eval* nil))
@@ -368,6 +372,14 @@ their name does not match the system file name."
       (dolist (system (ignore-errors (system-defined-systems system-file-name)))
         (unless (blacklistedp source system)
           (funcall fun system-file-name system))))))
+
+(defun collect-source-systems (source)
+  (ensure-system-file-index)
+  (setf source (source-designator source))
+  (with-system-index
+      (loop
+         for system-file-name in (system-names source)
+         appending (system-nonblacklisted-systems source system-file-name))))
 
 (defun acceptable-system-name (name)
   (declare (ignore name))

@@ -526,3 +526,73 @@
          (when new-source
            (setf (first-line (source-file source))
                  new-source)))))))
+
+;;; write metadata.sexp files
+
+(defun compute-system-deps (system)
+  (getf (cdr system) :depends-on))
+(defun compute-source-deps (source)
+  (reduce #'union (mapcar #'compute-system-deps
+                          (cdr source))))
+(defun compute-deps (sources)
+  (let ((requires (reduce #'union
+                          (mapcar #'compute-source-deps
+                                  sources)))
+        (provides (mapcar #'car sources)))
+    (set-difference requires provides :test #'equal)))
+
+(defun write-metadata-sexps ()
+  (ensure-system-file-index)
+  (with-skipping
+    (map-sources
+     (lambda (source)
+       (format t "mapping over the system files in source ~A~%" source)
+       (dolist (system-file-name (system-names source))
+         (let ((metadata-file (make-pathname :defaults (source-file source)
+                                             :name (format nil "~A.metadata" system-file-name)
+                                             :type "sexp"))
+               (system-name (car (last (system-nonblacklisted-systems source system-file-name)))))
+           (when system-name
+             (format t "writing system metadata to ~A~%" metadata-file)
+             (system-file-magic system-name
+                                (project-name source)
+                                metadata-file))))
+       (flet ((trim-prefix (file)
+                (subseq file (1+ (position #\/ file)))))
+         (let ((metadata-file (make-pathname :defaults (source-file source)
+                                             :name "metadata"
+                                             :type "sexp")))
+           (with-open-file (stream metadata-file :direction :output :if-exists :supersede)
+             (let* ((tarball (ensure-cached-release-tarball source))
+                    (project-name (project-name source))
+                    (url (format nil "http://~A/archive/~A/~A/~A"
+                                 *s3-bucket*
+                                 project-name
+                                 (dist-string (file-write-date tarball))
+                                 (file-namestring tarball)))
+                    (system-files (system-names source))
+                    (systems (loop
+                                for system-file-name in system-files
+                                collecting (cons system-file-name
+                                                 (read (open (make-pathname :defaults metadata-file
+                                                                            :name (format nil "~A.metadata" system-file-name)
+                                                                            :type "sexp"))))))
+                    (primary-system-file-metadata (cdr (assoc project-name systems :test #'equal)))
+                    (primary-system-metadata (cdr (assoc project-name primary-system-file-metadata :test #'equal))))
+                 (format t "writing project metadata to ~A~%" metadata-file)
+                 (pprint (list :project project-name
+                               :description (getf primary-system-metadata :description)
+                               :long-description (getf primary-system-metadata :long-description)
+                               :license (getf primary-system-metadata :license)
+                               :author (getf primary-system-metadata :author)
+                               :homepage (getf primary-system-metadata :homepage)
+                               :bug-tracker (getf primary-system-metadata :bug-tracker)
+                               :depends-on (compute-deps systems)
+                               :release-url url
+                               :size (file-size tarball)
+                               :file-md5 (file-md5 tarball)
+                               :file-sha256 (file-sha256 tarball)
+                               :file-content-sha1 (first (last (pathname-directory tarball)))
+                               :system-files system-files
+                               :systems systems)
+                         stream)))))))))

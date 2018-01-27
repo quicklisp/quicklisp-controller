@@ -244,6 +244,10 @@ template pathname."
   (ironclad:byte-array-to-hex-string
    (ironclad:digest-file :md5 file)))
 
+(defun file-sha256 (file)
+  (ironclad:byte-array-to-hex-string
+   (ironclad:digest-file :sha256 file)))
+
 (defun dist-string (&optional (timestamp (get-universal-time)))
   (multiple-value-bind (second minute hour day month year)
       (decode-universal-time timestamp 0)
