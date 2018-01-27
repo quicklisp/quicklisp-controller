@@ -63,16 +63,33 @@
   (:method ((source git-at-commit-source))
     (format nil "~A" (commit source))))
 
+(defun submodule-git-archive-command (prefix directory)
+  (flet ((concat (&rest strings)
+           (apply #'concatenate 'string strings)))
+    (let* ((tardir (concat (native-directory-string directory) "$path/"))
+           (tarfile (concat tardir "$name.tar")))
+      (format nil
+              "mkdir -p ~S ~
+               && git archive HEAD --format=tar --prefix=~S > ~S"
+              tardir (concat prefix "$path/") tarfile))))
+
 (defmethod make-release-tarball ((source git-source) output-file)
   (let ((prefix (release-tarball-prefix source))
         (checkout (ensure-source-cache source)))
     (in-temporary-directory prefix
       (let ((temptar (merge-pathnames "package.tar"))
-            (tempgz (merge-pathnames "package.tar.gz")))
+            (tempgz (merge-pathnames "package.tar.gz"))
+            (tempsub (merge-pathnames "submodules/")))
+        (ensure-directories-exist tempsub)
         (with-posix-cwd checkout
           (with-binary-run-output temptar
             (run "git" "archive" :format "tar" :prefix prefix
                  (target-ref source)))
+          (without-run-output
+            (run "git" "submodule" "foreach" :recursive :quiet
+                 (submodule-git-archive-command prefix tempsub)))
+          (dolist (archive (directory (merge-pathnames "**/*.tar" tempsub)))
+            (run "tar" "Af" temptar archive))
           (run "gzip" "-vn9" temptar)
           (copy tempgz output-file))))))
 
