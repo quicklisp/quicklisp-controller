@@ -13,14 +13,9 @@
 (defclass predictable-http-source (location-templated-source http-source)
   ())
 
-(defclass xach-http-source (predictable-http-source) ()
+(defclass ediware-http-source (git-source location-templated-source) ()
   (:default-initargs
-   :location-template "http://www.xach.com/lisp/~A.tgz"))
-
-
-(defclass ediware-http-source (predictable-http-source) ()
-  (:default-initargs
-   :location-template "http://weitz.de/files/~A.tar.gz"))
+   :location-template "https://github.com/edicl/~A.git"))
 
 
 (defclass froydware-http-source (predictable-http-source) ()
