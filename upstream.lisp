@@ -182,6 +182,13 @@
                    :name "source"
                    :type "txt"))))
 
+(defun fresh-cache-p (source)
+  (not
+   (not
+    (probe-file
+     (make-pathname :type nil :name "fresh-cache"
+		    :defaults (project-name-source-file (name source)) )))))
+
 (defun find-source (project-name)
   (let* ((name (string-downcase project-name))
          (file (probe-file (project-name-source-file name))))
