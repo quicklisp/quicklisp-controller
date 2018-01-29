@@ -227,11 +227,6 @@ template pathname."
   (with-open-file (stream file)
     (read-line stream)))
 
-(defun file-lines (file)
-  (with-open-file (stream file)
-    (loop for line = (read-line stream nil)
-       while line collect line))) 
-
 (defun first-form-of (file)
   (with-open-file (stream file)
     (read stream)))
