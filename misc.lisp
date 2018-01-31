@@ -170,7 +170,7 @@
   (update-system-file-index)
   (let ((wins (find-more-winning-systems source)))
     (list :fails (missing-components source)
-	  :wins wins)))
+          :wins wins)))
 
 (defun source-pathname (project-name)
   (let ((directory `(:relative "quicklisp-controller"
@@ -225,7 +225,7 @@
             :parallel parallel)))
     (if file
         (with-open-file (stream file :direction :output
-                                     :if-exists :rename-and-delete)
+                                :if-exists :rename-and-delete)
           (action (make-broadcast-stream *standard-output* stream)))
         (action *standard-output*))))
 
@@ -330,6 +330,7 @@
 
 (defparameter *project-name-guessers*
   '("/.*?/([^/]*)\\.git$"
+    "github.com/.*?/(.*?)/"
     "//(.*?).googlecode.com"
     "//(.*?).git.sourceforge"
     "code.sf.net/p/([^/]+)/"
@@ -341,6 +342,7 @@
 (defparameter *project-type-guessers*
   '((":pserver:" . "cvs")
     ("dwim\\.hu" . "darcs")
+    ("github.com.*/tree/" . "branched-git")
     ("git" . "git")
     ("wcp\\.sdf-eu" . "wcpware-http")
     ("bitbucket.org" . "mercurial")
@@ -348,6 +350,9 @@
     ("https://" . "https")
     ("hg.code.sf.net" . "mercurial")
     ("(\\.tar\\.gz|\\.tgz)$" . "http")))
+
+(defparameter *project-data-guessers*
+  '("github.com/.*/tree/(.*)$"))
 
 (defun guess-project-name (url)
   (dolist (pattern *project-name-guessers*)
@@ -357,7 +362,18 @@
 (defun guess-project-type (url)
   (loop for (pattern . type) in *project-type-guessers*
         when (ppcre:scan pattern url)
-        return type))
+     return type))
+
+(defun guess-project-data (url)
+  (dolist (pattern *project-data-guessers*)
+    (ppcre:register-groups-bind (data) (pattern url)
+      (return data))))
+
+(defun maybe-rewrite-url (url type)
+  (cond ((equal type "branched-git")
+         (ppcre:regex-replace "/tree/.*$" url ".git"))
+        (t
+         url)))
 
 (defun project-source-filename (project-name)
   (merge-pathnames (make-pathname :directory (list :relative project-name))
@@ -366,7 +382,9 @@
 (defun add-project (url &key name type data)
   (let ((name (or name (guess-project-name url)))
         (type (or type (guess-project-type url)))
+        (data (or data (guess-project-data url )))
         (*system-metadata-required-p* t))
+    (setf url (maybe-rewrite-url url type))
     (tagbody
      :retry
        (unless type
@@ -374,7 +392,7 @@
        (unless name
          (error "Can't guess project name"))
        (when (equal name "")
-	 (error "Name can't be empty"))
+         (error "Name can't be empty"))
        (let ((file (project-source-filename name)))
          (restart-case
              (when (probe-file file)
@@ -466,11 +484,11 @@
 
 (defun absent-dependencies-report (dist)
   (let* ((systems (provided-systems (dist dist)))
-	 (no-required-systems (remove-if-not #'required-systems systems))
-	 (ratio (/ (length no-required-systems) (length systems))))
+         (no-required-systems (remove-if-not #'required-systems systems))
+         (ratio (/ (length no-required-systems) (length systems))))
     (unless (< 0.5 ratio )
       (format t "ONLY ~$% OF SYSTEMS WITH DEPENDENCIES!"
-	      (* ratio 100)))))
+              (* ratio 100)))))
 
 (defparameter *sanity-check-reports*
   '(unprovided-required-systems-report
@@ -491,7 +509,7 @@
 (defun tool-versions-match ()
   (let ((sbcl-version (run-output-line "sbcl" :version))
         (depcheck-version (ignore-errors (run-output-line "depcheck"
-							  :sbcl-version))))
+                                                          :sbcl-version))))
     (string= sbcl-version depcheck-version
              :start1 (1+ (position #\Space sbcl-version)))))
 
