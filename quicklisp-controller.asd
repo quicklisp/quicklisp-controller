@@ -29,7 +29,6 @@
                (:file "commands")
                (:file "utils")
                (:file "setup")
-	       (:file "provenance")
                (:file "upstream")
 	       (:file "system-file-magic-cache")
                (:file "dist-cache")
