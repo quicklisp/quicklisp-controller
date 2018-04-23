@@ -33,7 +33,7 @@
          (message (or commit-message
                       (commit-message source))))
     (unless (or unclean (clean-stage-p))
-      (error "Stage isn't clean"))
+      (cerror "Continue anyway" "Stage isn't clean"))
     (in-projects-directory
       (run "git" "add" (pathname file))
       (run "git" "commit" "-m" message))
