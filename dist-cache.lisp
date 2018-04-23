@@ -57,7 +57,10 @@
 
 
 (defun build-relative (pathname source)
-  (merge-pathnames pathname (ensure-cached-build-directory source)))
+  (merge-pathnames pathname
+                   (merge-pathnames
+                    (make-pathname :directory (list :relative (name source)))
+                    (translate-logical-pathname "quicklisp-controller:dist;build-artifacts;"))))
 
 ;;; System files
 
