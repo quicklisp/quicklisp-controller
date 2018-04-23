@@ -530,13 +530,16 @@
 
 (defun =location~ (substring)
   (lambda (source)
-    (search substring (location source))))
+    (ppcre:scan substring (location source))))
 
 (defun http-to-https (source)
   (let ((location (ppcre:regex-replace "http://" (location source) "https://")))
     (format nil "https ~A" location)))
 
 (defun rewrite-sources (match-fun new-source-fun)
+  "Rewrite any source that returns TRUE from MATCH-FUN with
+NEW-SOURCE-FUN, which should return a single line for use in the
+source's source.txt file. Useful for bulk-updating sources."
   (map-sources
    (lambda (source)
      (when (funcall match-fun source)
