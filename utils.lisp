@@ -181,14 +181,20 @@ template pathname."
           while line collect line)))
 
 (defun tarball-prefix (file)
+  "For a tarball that unpacks into a subdirectory (e.g. 'foo/foo.asd',
+'foo/package.asd', etc), extract the subdirectory string. Errors if
+the subdirectory is absent or inconsistent."
   (let ((contents (tarball-contents file)))
-    (let ((prefix (subseq (first contents) 0
-                          (1+ (position #\/ (first contents))))))
-      (dolist (entry contents prefix)
-        (unless (and (<= (length prefix) (length entry))
-                     (string= prefix entry :end2 (length prefix)))
-          (error "Tarball ~A lacks consistent prefix output directory"
-                 file))))))
+    (let ((first-slash (position #\/ (first contents))))
+      (unless first-slash
+        (error "No slash in first entry of tarball -- ~A" (first contents)))
+      (let ((prefix (subseq (first contents) 0
+                            (1+ first-slash))))
+        (dolist (entry contents prefix)
+          (unless (and (<= (length prefix) (length entry))
+                       (string= prefix entry :end2 (length prefix)))
+            (error "Tarball ~A lacks consistent prefix output directory"
+                   file)))))))
 
 (defun tarball-canonical-name (file)
   (string-right-trim "/" (tarball-prefix file)))
