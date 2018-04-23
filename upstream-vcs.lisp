@@ -79,7 +79,7 @@
     (merge-logical (format nil "~A/~A/"
                            (project-name source)
                            (string-digest (location source)))
-                   "quicklisp-controller:vcs-cache;")))
+                   "quicklisp-controller:upstream-cache;vcs;")))
 
 (defmethod ensure-source-cache ((source vcs-source))
   (let ((pathname (cached-checkout-directory source)))

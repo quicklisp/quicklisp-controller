@@ -22,7 +22,7 @@
   (merge-logical (format nil "~A/~A.dat"
                          (project-name source)
                          (string-digest (location source)))
-                 "quicklisp-controller:http-cache;"))
+                 "quicklisp-controller:upstream-cache;http;"))
 
 (defmethod make-release-tarball ((source http-source) output-file)
   (let ((prefix (release-tarball-prefix source))
