@@ -160,13 +160,13 @@ if needed."
   (setf source (source-designator source))
   (mapcar 'pathname-name (system-files source)))
 
-
 (defun asdf-systems-table ()
   "Return a hash table that maps system names to system files."
   (let ((table (make-string-table)))
     ;; Add SBCL contribs first
-    (let ((contrib-system-files
-           (directory "/usr/local/lib/sbcl/contrib/*.asd")))
+    (let* ((base (sb-int:sbcl-homedir-pathname))
+	   (contrib-system-files
+	    (directory (merge-pathnames "contrib/*.asd" base))))
       (dolist (file contrib-system-files)
         (setf (gethash (pathname-name file) table) file)))
     (map-sources
