@@ -77,7 +77,7 @@
       (with-binary-run-output "temp.dat"
         (run "bunzip2" "-c" "temp.bz2"))
       (run "gzip" "temp.dat")
-      (rename-file "temp.dat.gz" cached))
+      (alexandria:copy-file "temp.dat.gz" cached))
     (probe-file cached)))
 
 (defmethod update-source-cache ((source http-source))
