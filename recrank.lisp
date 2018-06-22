@@ -18,7 +18,7 @@
 		   :to *report-to-email*))))
   (run "rm" "-rf"
        (native-namestring
-        (translate-logical-pathname #p"quicklisp-controller:dist;")))
+        (translate-logical-pathname #p"quicklisp-controller:dist;build-artifacts;")))
   (ensure-what-wins-you-can)
   (when report
     (with-skipping
