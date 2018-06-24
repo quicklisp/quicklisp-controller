@@ -268,7 +268,7 @@ source is found that matches the filename, return nil."
 				     failing-system))))))
 
 (defun failing-source-log-files ()
-  (let* ((base (translate-logical-pathname "quicklisp-controller:dist;build-cache;"))
+  (let* ((base (translate-logical-pathname "quicklisp-controller:dist;build-artifacts;"))
 	 (fail-wild (merge-pathnames "**/fail_*_*_*.txt" base)))
     (directory fail-wild)))
 
