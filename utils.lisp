@@ -42,7 +42,7 @@
 
 (defun rm-rf (path)
   (unless *rm-rf-debug*
-    (run "rm" "-rf" (native path))))
+    (run "rm" "-rf" (native (translate-logical-pathname path)))))
 
 (defun call-in-temporary-directory (template-pathname fun)
   (flet ((random-temporary ()

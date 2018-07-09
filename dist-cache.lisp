@@ -2,6 +2,20 @@
 
 (in-package #:quicklisp-controller)
 
+(defun clear-tar-cache ()
+  (rm-rf "quicklisp-controller:dist;tar-cache;"))
+
+(defun clear-build-cache ()
+  (rm-rf "quicklisp-controller:dist;build-cache;"))
+
+(defun clear-build-artifacts ()
+  (rm-rf "quicklisp-controller:dist;build-artifacts;"))
+
+(defun clear-dist-caches ()
+  (clear-tar-cache)
+  (clear-build-cache)
+  (clear-build-artifacts))
+
 (defgeneric find-cached-release-tarball (source)
   (:method (source)
     (let* ((wild

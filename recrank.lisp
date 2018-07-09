@@ -16,9 +16,7 @@
 		   :subject "Quicklisp update failures"
 		   :from *report-to-email*
 		   :to *report-to-email*))))
-  (run "rm" "-rf"
-       (native-namestring
-        (translate-logical-pathname #p"quicklisp-controller:dist;build-artifacts;")))
+  (clear-dist-caches)
   (ensure-what-wins-you-can)
   (when report
     (with-skipping
