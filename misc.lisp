@@ -281,7 +281,7 @@
     (tail-file file n)))
 
 (defvar *failtail-credentials-file*
-  #p"quicklisp-controller:failtail-credentials.txt")
+  #p"quicklisp-controller:dist;failtail-credentials.txt")
 
 (defvar *failtail-credentials*
   (zs3:file-credentials *failtail-credentials-file*))
@@ -393,7 +393,7 @@
          (error "Can't guess project name"))
        (when (equal name "")
          (error "Name can't be empty"))
-       (let ((file (project-source-filename name)))
+       (let ((file (project-name-source-file name)))
          (restart-case
              (when (probe-file file)
                (error "Project already has a file"))
