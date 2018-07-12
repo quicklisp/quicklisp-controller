@@ -8,6 +8,7 @@
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
   (preflight)
+  (clear-dist-caches)
   (when update
     (update-what-you-can :file file :parallel parallel)
     (when (and file *report-to-email*)
@@ -16,7 +17,6 @@
 		   :subject "Quicklisp update failures"
 		   :from *report-to-email*
 		   :to *report-to-email*))))
-  (clear-dist-caches)
   (ensure-what-wins-you-can)
   (when report
     (with-skipping
