@@ -2,11 +2,15 @@
 
 (in-package #:quicklisp-controller)
 
+(defvar *system-file-index-file*
+  #p"quicklisp-controller:dist;system-file-index")
+
 (defun clear-tar-cache ()
   (rm-rf "quicklisp-controller:dist;tar-cache;"))
 
 (defun clear-build-cache ()
-  (rm-rf "quicklisp-controller:dist;build-cache;"))
+  (rm-rf "quicklisp-controller:dist;build-cache;")
+  (rm-rf *system-file-index-file*))
 
 (defun clear-build-artifacts ()
   (rm-rf "quicklisp-controller:dist;build-artifacts;"))
@@ -220,9 +224,6 @@ if needed."
                     (truename pathname)))))
     table))
 
-
-(defvar *system-file-index-file*
-  #p"quicklisp-controller:dist;system-file-index")
 
 (defun update-system-file-index ()
   (let ((table (asdf-systems-table)))
