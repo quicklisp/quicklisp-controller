@@ -16,7 +16,6 @@
                #:ironclad
                #:lparallel
 	       #:cl-who
-               #:ubiquitous
                #:githappy
                #:project-info
 	       #:westbrook)
