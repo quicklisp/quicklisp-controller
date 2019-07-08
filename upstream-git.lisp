@@ -76,7 +76,9 @@
                                    "--recursive"
                                    "echo $name $sha1 $displaypath")
         for (name sha1 path) = (split-spaces line)
-        collect (make-submodule :name name :path path :sha1 sha1)))
+        collect (make-submodule :name (encode-string-for-filesystem name)
+                                :path path
+                                :sha1 sha1)))
 
 (defun full-git-archive (git-path target-ref prefix output-file)
   "Create a tarball archive in OUTPUT-FILE of the full contents of the
