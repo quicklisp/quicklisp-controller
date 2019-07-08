@@ -126,12 +126,15 @@
 
 (define-irepl-command skip
   (let ((index (position-if-not (=jref '("labels" :* "name"))
-				(all-issues *irepl-state*))))
+                                (all-issues *irepl-state*))))
     (if index
-	(progn
-	  (setf (issue-index *irepl-state*) index)
-	  (invoke-irepl-command 'show))
-	(format t "; No issue without labels~%"))))
+        (progn
+          (setf (issue-index *irepl-state*) index)
+          (invoke-irepl-command 'show))
+        (format t "; No issue without labels~%"))))
+
+(define-irepl-command failtail
+  (failtail))
 
 (defvar *irepl-guess-patterns*
   "https://github.com/")
@@ -142,9 +145,15 @@
     :canbuild))
 
 (define-irepl-command cantbuild
-  (when *last-source*
-    (mark-cantbuild *last-source*)
-    :cantbuild))
+  (cond (*last-source*
+         (mark-cantbuild *last-source*)
+         (let ((log-url (publish-source-failure *last-source*)))
+           (comment-on-issue *last-source*
+                             (format nil "Failure log here: ~A"
+                                     log-url)))
+         :cantbuild)
+        (t
+         (warn "No last-source defined"))))
 
 (define-irepl-command commit
   (when *last-source*
