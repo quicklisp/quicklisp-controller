@@ -63,16 +63,61 @@
   (:method ((source git-at-commit-source))
     (format nil "~A" (commit source))))
 
+(defstruct (submodule (:type vector))
+  name
+  path
+  sha1)
+
+(defun git-submodules (git-path)
+  (loop for line in
+                 (run-output-lines "git" "-C" (truename git-path) "submodule"
+                                   "--quiet"
+                                   "foreach"
+                                   "--recursive"
+                                   "echo $name $sha1 $displaypath")
+        for (name sha1 path) = (split-spaces line)
+        collect (make-submodule :name name :path path :sha1 sha1)))
+
+(defun full-git-archive (git-path target-ref prefix output-file)
+  "Create a tarball archive in OUTPUT-FILE of the full contents of the
+git checkout GIT-PATH, including submodules. The repo is archived at
+TARGET-REF, e.g. 'HEAD'. "
+  (run "git" "-C" (truename git-path)
+       "submodule" "update" "--init" "--recursive")
+  (let ((submodules (git-submodules git-path)))
+    (in-temporary-directory prefix
+      (let* ((temp-base *default-pathname-defaults*))
+        (with-posix-cwd git-path
+          (run "git" "archive"
+               :format "tar"
+               :prefix (format nil "~A/" prefix)
+               "-o" (make-pathname :name (string-right-trim "/" prefix)
+                                   :type "tar"
+                                   :defaults temp-base)
+               target-ref)
+          (dolist (submodule submodules)
+            (with-posix-cwd (submodule-path submodule)
+              (let ((output (make-pathname :name (submodule-name submodule)
+                                           :type "tar"
+                                           :defaults temp-base)))
+                (run "git" "archive"
+                     :format "tar"
+                     "-o" output
+                     :prefix (format nil "~A/~A/"
+                                     prefix (submodule-path submodule))
+                     (submodule-sha1 submodule))))))
+        ;; Back in the temp directory
+        (dolist (tarball (directory "*.tar"))
+          (run "tar" "xf" tarball))
+        (let ((combined "combined.tar")
+              (combined-tgz "combined.tar.gz"))
+          (run "tar" "cf" combined prefix)
+          (run "gzip" "-vn9" "-S" ".gz" combined)
+          (rename-file combined-tgz output-file))
+        output-file))))
+
 (defmethod make-release-tarball ((source git-source) output-file)
   (let ((prefix (release-tarball-prefix source))
         (checkout (ensure-source-cache source)))
-    (in-temporary-directory prefix
-      (let ((temptar (merge-pathnames "package.tar"))
-            (tempgz (merge-pathnames "package.tar.gz")))
-        (with-posix-cwd checkout
-          (with-binary-run-output temptar
-            (run "git" "archive" :format "tar" :prefix prefix
-                 (target-ref source)))
-          (run "gzip" "-vn9" temptar)
-          (copy tempgz output-file))))))
+    (full-git-archive checkout (target-ref source) prefix output-file)))
 
