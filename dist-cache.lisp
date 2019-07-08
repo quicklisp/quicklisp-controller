@@ -412,6 +412,7 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
   (let ((winners '())
 	(timing-file (timing-file source))
 	(start-time (get-universal-time)))
+    (ensure-directories-exist timing-file)
     (map-source-systems
      source
      (lambda (system-name system)
