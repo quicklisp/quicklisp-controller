@@ -547,3 +547,23 @@ source's source.txt file. Useful for bulk-updating sources."
          (when new-source
            (setf (first-line (source-file source))
                  new-source)))))))
+
+
+;;; Showing update failures from a recrank log
+
+(defun starts-with (subseq seq)
+  (and (<= (length subseq) (length seq))
+       (every #'equal subseq seq)))
+
+(defun crank-projects (crank-logfile)
+  (with-open-file (stream crank-logfile)
+    (loop for line = (read-line stream nil)
+       while line
+       when (and line (starts-with "* " line))
+	 collect (subseq line 2))))
+
+(defun crank-failures (crank-logfile)
+  (dolist (project (crank-projects crank-logfile))
+    (format t ";;; ~A~%" project)
+    (with-simple-restart (skip "Skip ~A" project)
+      (update-source-cache (find-source project)))))
