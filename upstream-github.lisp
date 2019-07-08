@@ -28,13 +28,15 @@
             :tag (githappy:jref json '(0 "name"))))))
 
 
-(defclass latest-github-release-source (http-source)
+(defclass latest-github-release-source (git-source)
   ((release-url
     :initarg :release-url
     :accessor release-url)
    (release-tag
     :initarg :release-tag
-    :accessor release-tag)))
+    :accessor release-tag
+    :reader tag-data
+    :reader target-ref)))
 
 (defclass latest-github-tag-source (latest-github-release-source)
   ())
@@ -69,10 +71,7 @@
 (defmethod release-tarball-prefix ((source latest-github-release-source))
   (format nil "~A-~A/" (name source) (release-tag source)))
 
-(defmethod create-source-cache ((source latest-github-release-source))
-  (let ((cached (cache-object-file source)))
-    (ensure-directories-exist cached)
-    (curl (release-url source) cached)
-    (repack cached (release-tarball-prefix source) cached)
-    (probe-file cached)))
-
+(defmethod parse-location ((source latest-github-release-source)
+                           location-string)
+  (setf (location source) location-string)
+  source)
