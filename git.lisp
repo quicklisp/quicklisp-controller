@@ -39,6 +39,14 @@
       (run "git" "commit" "-m" message))
     (list :committed (name source) :with message)))
 
+(defmacro with-issue-number ((var source) &body body)
+  (let ((source-var (copy-symbol 'source)))
+    `(let* ((,source-var (source-designator ,source))
+	    (,var (github-issue-number ,source-var)))
+       (unless ,var
+	 (error "Can't find issue number for ~A" ,source-var))
+       ,@body)))
+
 (defun set-issue-label (source label)
   (setf source (source-designator source))
   (let ((issue-number (github-issue-number source)))
@@ -48,6 +56,13 @@
                                 :repo "quicklisp-projects"
                                 :number issue-number
                                 :body (githappy:js "labels" (list label)))))
+
+(defun comment-on-issue (source comment)
+  (with-issue-number (number source)
+    (githappy:create-repo-issue-comment :body (githappy:js "body" comment)
+					:issue-number number
+					:repo "quicklisp-projects"
+					:owner "quicklisp")))
 
 (defun mark-canbuild (source)
   (set-issue-label source "canbuild"))
