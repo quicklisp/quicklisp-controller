@@ -111,8 +111,7 @@
                              (asdf:component-name system))))
                (when (and (stringp value) (zerop (length value)))))))
       (check-attribute 'asdf:system-description :description)
-      ;; Not yet
-      ;;(check-attribute 'asdf:system-license :license)
+      (check-attribute 'asdf:system-license :license)
       (check-attribute 'asdf:system-author :author))))
 
 (defun compute-dependencies (system-file system-name)
@@ -190,27 +189,54 @@
   (sb-alien:alien-funcall
    (sb-alien:extern-alien "disable_lossage_handler" (function sb-alien:void)))
   (setf *print-pretty* nil)
-  (when (equalp (second argv) "--asdf-version")
-    (format t "~A~%" (asdf:asdf-version))
-    (sb-ext:exit :code 0))
-  (when (equalp (second argv) "--sbcl-version")
-    (format t "~A~%" (lisp-implementation-version))
-    (sb-ext:exit :code 0))
-  (unless (getenv "DEPCHECK_DEBUG")
-    (sb-ext:disable-debugger))
-  (setenv "SBCL_HOME"
-          (load-time-value
-           (directory-namestring sb-int::*core-string*)))
-  #+nil
-  (setenv "CC" "gcc")
-  (eval *load-op-wrapper*)
-  (when (getenv "DEPCHECK_FRESH_FASLS")
-    (set-fasl-output-directory (pathname (format nil "/tmp/depcheck/~D/"
-						 (getpid)))))
-  (destructuring-bind (index project system dependency-file errors-file
-                             &optional *metadata-required-p*)
-      (rest argv)
+  (sb-ext:disable-debugger)
+  (let (index project system dependency-file errors-file
+        (args (rest argv)))
+    (macrolet ((check-args (&rest vars)
+                 `(progn
+                    ,@(loop for var in vars
+                            for flag = (format nil "--~A"
+                                               (string-downcase var))
+                            collect
+                            `(unless ,var
+                               (error "Missing option ~S" ,flag))))))
+      (loop
+        (when (endp args)
+          (check-args index project system dependency-file errors-file)
+          (return))
+        (let ((arg (pop args)))
+          (cond ((equal arg "--index")
+                 (setf index (pop args)))
+                ((equal arg "--project")
+                 (setf project (pop args)))
+                ((equal arg "--system")
+                 (setf system (pop args)))
+                ((equal arg "--dependency-file")
+                 (setf dependency-file (pop args)))
+                ((equal arg "--errors-file")
+                 (setf errors-file (pop args)))
+                ;; Optional args follow
+                ((equal arg "--asdf-version")
+                 (write-line (asdf:asdf-version))
+                 (sb-ext:exit :code 0))
+                ((equal arg "--sbcl-version")
+                 (write-line (lisp-implementation-version))
+                 (sb-ext:exit :code 0))
+                ((equal arg "--debug")
+                 (sb-ext:enable-debugger))
+                ((equal arg "--metadata-required")
+                 (setf *metadata-required-p* t))
+                ((equal arg "--fasl-directory")
+                 (let ((path (pop args)))
+                   (ensure-directories-exist path)
+                   (set-fasl-output-directory (truename path))))
+                (t
+                 (error "Unknown argument ~S" arg))))))
     (setf *systems* (load-asdf-system-table index))
+    (setenv "SBCL_HOME"
+            (load-time-value
+             (directory-namestring sb-int::*core-string*)))
+    (eval *load-op-wrapper*)
     (with-open-file (*error-output* errors-file
                                     :if-exists :supersede
                                     :direction :output)
