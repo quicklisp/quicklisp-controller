@@ -34,7 +34,8 @@
          (process (run-program command arguments
                                :search t
                                :wait t
-                               :output *command-output*)))
+                               :output *command-output*
+                               :directory *default-pathname-defaults*)))
     (unwind-protect
          (let ((code (process-exit-code process)))
            (if (zerop code)
