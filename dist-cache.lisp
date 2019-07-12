@@ -252,26 +252,27 @@ if needed."
   "If true, a depcheck will fail if :author/:description/:license
   options are missing from a system.")
 
-(defun depcheck (primary-system sub-system &key fasl-directory)
+(defvar *depcheck-fasl-output-directory* nil)
+
+(defun depcheck (primary-system sub-system
+                 &key (fasl-directory *depcheck-fasl-output-directory*))
   (ensure-system-file-index)
   (ensure-in-anonymous-directory
-    (let* ((win (temporary-pathname "depcheck-win.txt"))
-           (fail (temporary-pathname "depcheck-fail.txt"))
-           (args (mapcan #'identity
-                         (list
-                          (list :index (native (translate-logical-pathname *system-file-index-file*)))
-                          (list :project primary-system)
-                          (list :system sub-system)
-                          (list :dependency-file win)
-                          (list :errors-file fail)
-                          (when *system-metadata-required-p*
-                            (list :metadata-required))
-                          (when fasl-directory
-                            (list :fasl-directory fasl-directory))))))
+    (let ((win (temporary-pathname "depcheck-win.txt"))
+          (fail (temporary-pathname "depcheck-fail.txt")))
       (ignore-errors (delete-file win))
       (ignore-errors (delete-file fail))
       (ignore-errors
-       (apply #'run "depcheck" args))
+       (run "depcheck"
+            :index (native (translate-logical-pathname *system-file-index-file*))
+            :project primary-system
+            :system sub-system
+            :dependency-file win
+            :errors-file fail
+            (when *system-metadata-required-p*
+              :metadata-required)
+            (when fasl-directory
+              (list :fasl-directory fasl-directory))))
       (let* ((won (probe-file win))
              (first-line (and won (ignore-errors (first-line-of win))))
              (result (and first-line (split-spaces first-line))))

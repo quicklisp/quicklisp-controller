@@ -20,17 +20,17 @@
                      (run-error-command condition)
                      (run-error-arguments condition)))))
 
-(defun stringify-command-argument (argument)
+(defun prepare-command-argument (argument)
   (typecase argument
     (null nil)
-    (string argument)
-    (pathname (native-namestring argument))
-    (keyword (format nil "--~(~A~)" argument))
-    (t (princ-to-string argument))))
+    (list (mapcan #'prepare-command-argument argument))
+    (string (list argument))
+    (pathname (list (native-namestring argument)))
+    (keyword (list (format nil "--~(~A~)" argument)))
+    (t (list (princ-to-string argument)))))
 
 (defun run (command &rest arguments)
-  (let* ((arguments (remove nil
-                            (mapcar #'stringify-command-argument arguments)))
+  (let* ((arguments (mapcan #'prepare-command-argument arguments))
          (process (run-program command arguments
                                :search t
                                :wait t
