@@ -232,7 +232,7 @@
 (defun ensure-what-wins-you-can ()
   (call-with-skipping
    (lambda ()
-     (map-sources
+     (pmap-sources
       (lambda (source)
         (format t "~&Checking ~S~%" (project-name source))
         ;;(clear-fasl-cache)

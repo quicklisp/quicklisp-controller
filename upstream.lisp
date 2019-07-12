@@ -150,11 +150,24 @@
 		     (push source result))))
     (sort result 'string< :key 'name)))
 
-(defun pmap-sources (fun &key (parallel-key #'source-host)
+
+(defun source-bucket (source)
+  "Return a string suitable for binning a source for parallel work."
+  (subseq (string-digest (first-line-of (source-file source)))
+          0 1))
+
+(defun fasl-directory (source)
+  (translate-logical-pathname
+   (make-pathname :host "quicklisp-controller"
+                  :directory (list :absolute "dist" "fasls"
+                                   (source-bucket source)))))
+
+(defun pmap-sources (fun &key (parallel-key 'source-bucket)
                            (test #'identity))
   (let ((dependency-tree (lparallel:make-ptree))
         (parallel-key-dependency (make-hash-table :test 'equal))
-        (i 0))
+        (i 0)
+        (result '()))
     (map-sources (lambda (source)
                    (let ((testp (funcall test source))
                          (pkey (funcall parallel-key source)))
@@ -163,7 +176,14 @@
                                                       parallel-key-dependency)
                                            (lambda (&optional arg)
                                              (declare (ignore arg))
-                                             (map-source fun source))
+                                             (multiple-value-bind (result error)
+                                                 (ignore-errors
+                                                  (map-source fun source))
+                                               (when error
+                                                 (format *trace-output* "; ERROR: ~A -> ~%;; ~A~%"
+                                                         source error)
+                                                 (push (cons source error)
+                                                       result))))
                                            dependency-tree)
                        (setf (gethash pkey parallel-key-dependency)
                              (list i))
@@ -171,7 +191,7 @@
     (lparallel:ptree-fn 'everything (loop for j below i collect j)
                         (constantly nil) dependency-tree)
     (lparallel:call-ptree 'everything dependency-tree)
-    nil))
+    (values nil result)))
 
 (defun project-name-source-file (project-name)
   (merge-pathnames

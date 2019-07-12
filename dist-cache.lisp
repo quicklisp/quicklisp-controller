@@ -187,7 +187,7 @@ if needed."
 	    (directory (merge-pathnames "contrib/*.asd" base))))
       (dolist (file contrib-system-files)
         (setf (gethash (pathname-name file) table) file)))
-    (map-sources
+    (pmap-sources
      (lambda (source)
        (let ((base (ensure-cached-build-directory source))
              (system-files (system-files source)))

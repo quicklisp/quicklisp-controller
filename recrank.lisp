@@ -4,7 +4,7 @@
 
 (defun recrank (&key (update t) (report t) (feeds t)
 		  (publish-failure-report t)
-                  parallel
+                  (parallel t)
                 (file #p"quicklisp:tmp;update-failures.txt"))
   (clear-fasl-cache)
   (preflight)
