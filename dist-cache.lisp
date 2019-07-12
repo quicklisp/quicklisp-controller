@@ -433,7 +433,8 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
                     (probe-file cached-winfile))
                (push (split-spaces (first-line-of cached-winfile)) winners)
                (multiple-value-bind (deps winfile failfile)
-                   (depcheck system-name system)
+                   (depcheck system-name system
+                             :fasl-directory (fasl-directory source))
                  (declare (ignore winfile))
                  (cond (deps
                         (ignore-errors (delete-file cached-failfile))

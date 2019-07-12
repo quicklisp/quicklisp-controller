@@ -3,8 +3,8 @@
 (in-package #:quicklisp-controller)
 
 (defun clear-fasl-cache ()
-  (run "rm" "-rf" (merge-pathnames ".cache/common-lisp/"
-                                   (user-homedir-pathname))))
+  (run "rm" "-rf"
+       (translate-logical-pathname "quicklisp-controller:dist;fasls;")))
 
 (defun system-from-release (system-name dist)
   (let* ((dist (ql-dist:dist dist))
