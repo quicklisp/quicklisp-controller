@@ -82,6 +82,77 @@ the string is returned unchanged."
       (when substituted
         (return substituted)))))
 
+(defun reconstitute (string patterns)
+  (let ((result (maybe-reconstitute string patterns)))
+    (and (not (eq result string))
+         result)))
+
+;;; Linking to VCS sources from log lines
+
+(defun parse-vcs-source-log-line (log-line)
+  "Return a plist of info about log-line."
+  (when (and (search "dist/build-cache/" log-line)
+             (not (search ".cache/common-lisp" log-line)))
+    (ppcre:register-groups-bind (project-name full-path)
+        ("dist/build-cache/(.*?)/(.*$)" log-line)
+      (let* ((pos 0)
+             (second-slash
+              (dotimes (i 2 pos)
+                (setf pos (position #\/ full-path :start (1+ pos)))))
+             (end (and second-slash (position #\& full-path :start second-slash))))
+        (let ((source (find-source project-name)))
+          (when (and source second-slash)
+            (let* ((path (subseq full-path (1+ second-slash) end))
+                   (start (search path log-line))
+                   (line-number nil))
+              (ppcre:register-groups-bind ((#'parse-integer log-line-number)) ("Line: (\\d+)" log-line)
+                (setf line-number log-line-number))
+              (list :source source
+                    :path path
+                    :line-number line-number
+                    :path-bounds (cons start (+ start (length path)))))))))))
+
+(defparameter *location-base-substitutions*
+  '(("(https://github.com/.*?/.*?)\\.git" 0 "/blob/")
+    ("(https://.*gitlab.*)\\.git$" 0 "/blob/")
+    ("(https://bitbucket.org/.*?)\\.git$" 0 "/src/")
+    ("(http://dwim.hu/live/.*$)" 0)))
+
+(defun location-base (location)
+  (reconstitute location *location-base-substitutions*))
+
+(defun source-branch (source)
+  (typecase source
+    (tagged-mixin
+     (tag-data source))
+    (git-source
+     "master")
+    (t
+     nil)))
+
+(defun source-file-link-base (source)
+  (let ((base (location-base (location source))))
+    (when base
+      (format nil "~A~@[~A/~]" base (source-branch source)))))
+
+(defun source-file-link (source path line-number)
+  (let ((base (source-file-link-base source)))
+    (when base
+      (format nil "~A~A~@[#L~A~]" base path line-number))))
+
+(defun link-subseq (line link bounds)
+  (destructuring-bind (start . end)
+      bounds
+    (concatenate 'string
+                 (subseq line 0 start)
+                 "<a href='"
+                 link
+                 "'>"
+                 (subseq line start end)
+                 "</a>"
+                 (subseq line end))))
+
+
 ;;; Posting to S3
 
 (defun report-publishing-enabled-p ()
@@ -90,8 +161,8 @@ the string is returned unchanged."
 (defun content-type (file)
   (cond ((equalp (pathname-type file) "css")
          "text/css")
-	((equalp (pathname-type file) "rss")
-	 "application/rss+xml")
+        ((equalp (pathname-type file) "rss")
+         "application/rss+xml")
         (t
          "text/html")))
 
@@ -124,9 +195,9 @@ the string is returned unchanged."
 (defgeneric full-failure-report-url (object)
   (:method (object)
     (format nil "http://~A/~A~A"
-	    *failtail-bucket*
-	    (report-prefix)
-	    (failure-report-url object))))
+            *failtail-bucket*
+            (report-prefix)
+            (failure-report-url object))))
 (defgeneric failure-report-html-file (base object))
 
 (defgeneric stylesheet-path (object))
@@ -161,8 +232,10 @@ the string is returned unchanged."
 
 (defmethod new-failure-p ((object failing-system))
   (let* ((dist (ql-dist:find-dist "quicklisp"))
-         (system (ql-dist:find-system-in-dist (system-name object) dist)))
-    (not (not system))))
+         (existing-system
+          (ql-dist:find-system-in-dist (system-name object) dist)))
+    (or (not (not existing-system))
+        (< (days-old (source object)) 30))))
 
 (defmethod failure-data ((source upstream-source))
   (let ((result '()))
@@ -260,61 +333,61 @@ source is found that matches the filename, return nil."
     ;; reason), so don't try to make a failing-source in that case.
     (let ((source (find-source source-name)))
       (when source
-	(make-instance 'failing-system
-		       :source (find-source source-name)
-		       :failure-log-file failure-file
-		       :system-file-name system-file-name
-		       :system-name (decode-string-from-filesystem
-				     failing-system))))))
+        (make-instance 'failing-system
+                       :source (find-source source-name)
+                       :failure-log-file failure-file
+                       :system-file-name system-file-name
+                       :system-name (decode-string-from-filesystem
+                                     failing-system))))))
 
 (defun failing-source-log-files ()
   (let* ((base (translate-logical-pathname "quicklisp-controller:dist;build-artifacts;"))
-	 (fail-wild (merge-pathnames "**/fail_*_*_*.txt" base)))
+         (fail-wild (merge-pathnames "**/fail_*_*_*.txt" base)))
     (directory fail-wild)))
 
 (defun failing-systems ()
   (remove nil
-	  (mapcar #'parse-failure-file-name
-		  (failing-source-log-files))))
+          (mapcar #'parse-failure-file-name
+                  (failing-source-log-files))))
 
 (defun failure-log-failure-report ()
   "Scan the failure log files of all projects to produce a failure report."
   (let ((systems (make-hash-table :test 'equal)))
     (flet ((fsource (source)
-	     (or (gethash (name source) systems)
-		 (setf (gethash (name source) systems)
-		       (make-instance 'failing-source
-				      :failure-data nil
-				      :source source)))))
+             (or (gethash (name source) systems)
+                 (setf (gethash (name source) systems)
+                       (make-instance 'failing-source
+                                      :failure-data nil
+                                      :source source)))))
       (let ((table (make-hash-table :test 'eq))
-	    (systems (failing-systems))
-	    (report (make-instance 'failure-report
-				   :failure-data '())))
-	(dolist (system systems)
-	  (let ((key (fsource (source system))))
-	    (push system (gethash key table))))
-	(maphash (lambda (failing-source failing-systems)
-		   (setf (failure-data failing-source) failing-systems)
-		   (push failing-source (failure-data report)))
-		 table)
-	report))))
+            (systems (failing-systems))
+            (report (make-instance 'failure-report
+                                   :failure-data '())))
+        (dolist (system systems)
+          (let ((key (fsource (source system))))
+            (push system (gethash key table))))
+        (maphash (lambda (failing-source failing-systems)
+                   (setf (failure-data failing-source) failing-systems)
+                   (push failing-source (failure-data report)))
+                 table)
+        report))))
 
 (defmethod failure-data ((object (eql t)))
   (failure-log-failure-report))
 
 (defparameter *log-lines-that-are-boring*
   (mapcar 'ppcre:create-scanner
-	  '("^WARNING:")))
+          '("^WARNING:")))
 
 (defparameter *log-lines-to-highlight*
   (mapcar 'ppcre:create-scanner
           '("^; caught (WARNING|ERROR):"
             " READ error during"
-	    "^Backtrace for"
+            "^Backtrace for"
             "^Unhandled")))
 
 (defparameter *failure-log-reconstitution-patterns*
-  '(("(The ANSI Standard, Section )([0-9.]*)"
+  '(("(^.*The ANSI Standard, Section )([0-9.]*)"
      0 "<a href='http://l1sp.org/cl/" 1 "'>" 1 "</a>")))
 
 (defun failure-log-reconstitute-line (line)
@@ -363,18 +436,25 @@ source is found that matches the filename, return nil."
     (loop for line = (read-line log-stream nil)
         while line
         do
-	 (setf line (cl-who:escape-string line))
-	 (cond ((highlighted-log-line-p line)
-		(write-string "<strong>" stream)
-		(write-string line stream)
-		(write-string "</strong>" stream)
-		(terpri stream))
-	       ((boring-log-line-p line)
-		(format stream "<span class='boring'>~A~%</span>" line))
-	       (t
-		(write-line line stream)))))
+         (setf line (failure-log-reconstitute-line (cl-who:escape-string line)))
+         (let ((upstream-info (parse-vcs-source-log-line line)))
+           (when upstream-info
+             (destructuring-bind (&key source path path-bounds line-number &allow-other-keys)
+                    upstream-info
+                  (let ((link (source-file-link source path line-number)))
+                    (when link
+                      (setf line (link-subseq line link path-bounds)))))))
+         (cond ((highlighted-log-line-p line)
+                (write-string "<strong>" stream)
+                (write-string line stream)
+                (write-string "</strong>" stream)
+                (terpri stream))
+               ((boring-log-line-p line)
+                (format stream "<span class='boring'>~A~%</span>" line))
+               (t
+                (write-line line stream))))
   (format stream "</pre>")
-  (format stream "</div>~%"))
+  (format stream "</div>~%")))
 
 (defmethod write-html-failure-report-content ((source failing-source) stream)
   (dolist (system (failure-data source))
