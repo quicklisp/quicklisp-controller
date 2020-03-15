@@ -294,3 +294,17 @@ the subdirectory is absent or inconsistent."
 	   (#\Nul
 	    (write-string "[nul]" s))
 	   (t (write-char char s))))))
+
+(defun gist-file (&key (description "No description") pathname (public t))
+  (unless pathname
+    (error "Pathname required"))
+  (flet ((js (&rest args)
+	   (apply #'githappy:js args))
+	 (table (&rest args)
+	   (apply #'githappy:table args)))
+    (let ((value (alexandria:read-file-into-string pathname))
+	  (key (file-namestring pathname)))
+      (githappy:create-gist :body
+			    (githappy:js "description" description
+					 "public" public
+					 "files" (table key (table "content" value)))))))
