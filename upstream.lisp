@@ -26,6 +26,12 @@
 (defmethod base-directory ((source upstream-source))
   (pathname (directory-namestring (source-file source))))
 
+(defgeneric days-old (source)
+  (:method (source)
+    (truncate (- (get-universal-time)
+                 (file-write-date (source-file source)))
+              86400)))
+
 (defgeneric print-source (source stream)
   (:method (source stream)
     (format stream "~S ~S"
@@ -146,8 +152,8 @@
 (defun collect-sources-if (fun)
   (let ((result '()))
     (map-sources (lambda (source)
-		   (when (funcall fun source)
-		     (push source result))))
+                   (when (funcall fun source)
+                     (push source result))))
     (sort result 'string< :key 'name)))
 
 (defun pmap-sources (fun &key (parallel-key #'source-host)
@@ -187,7 +193,7 @@
    (not
     (probe-file
      (make-pathname :type nil :name "fresh-cache"
-		    :defaults (project-name-source-file (name source)) )))))
+                    :defaults (project-name-source-file (name source)) )))))
 
 (defun find-source (project-name)
   (let* ((name (string-downcase project-name))
@@ -225,13 +231,13 @@
 
 (defun missing-commands ()
   (let ((missing '())
-	(tried (make-string-table)))
+        (tried (make-string-table)))
     (map-sources
      (lambda (source)
        (let ((command (command source)))
-	 (when command
-	   (unless (gethash command tried)
-	     (setf (gethash command tried) t)
-	     (unless (ignore-errors (run command "--version"))
-	       (push command missing)))))))
+         (when command
+           (unless (gethash command tried)
+             (setf (gethash command tried) t)
+             (unless (ignore-errors (run command "--version"))
+               (push command missing)))))))
     missing))

@@ -567,3 +567,14 @@ source's source.txt file. Useful for bulk-updating sources."
     (format t ";;; ~A~%" project)
     (with-simple-restart (skip "Skip ~A" project)
       (update-source-cache (find-source project)))))
+
+;;; Recrank only failing systems
+
+(defun recrank-failing-systems ()
+  (map nil
+       (lambda (source)
+         (format *trace-output* "~&; XXX updating and cranking ~A~%" source)
+         (update-and-crank source))
+       (remove-duplicates (mapcar 'source (failing-systems))
+                          :key 'name
+                          :test 'equal)))
