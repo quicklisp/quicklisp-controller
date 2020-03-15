@@ -116,7 +116,8 @@ the string is returned unchanged."
   '(("(https://github.com/.*?/.*?)\\.git" 0 "/blob/")
     ("(https://.*gitlab.*)\\.git$" 0 "/blob/")
     ("(https://bitbucket.org/.*?)\\.git$" 0 "/src/")
-    ("(http://dwim.hu/live/.*$)" 0)))
+    ("(http://dwim.hu/live/.*$)" 0)
+    ("^(https:.*notabug.*)\.git$" 0 "/src/")))
 
 (defun location-base (location)
   (reconstitute location *location-base-substitutions*))
