@@ -82,7 +82,7 @@
 
 ;;; System files
 
-(defun blacklist-table (name)
+(defun excluded-systems-table (name)
   (let* ((pathname (merge-logical (make-pathname :name name)
                                   #p"quicklisp-controller:projects;qlc-meta;template.txt"))
          (lines (and (probe-file pathname) (config-file-lines pathname)))
@@ -90,16 +90,16 @@
     (dolist (line lines table)
       (setf (gethash line table) t))))
 
-(defun blacklist-list (name)
+(defun excluded-systems-list (name)
   (let ((pathname (merge-logical (make-pathname :name name)
                                   #p"quicklisp-controller:projects;qlc-meta;template.txt")))
     (when (probe-file pathname)
       (config-file-lines pathname))))
 
-(defun make-blacklister (source)
+(defun make-system-excluder (source)
   (lambda (system-file)
-    (let ((bad-patterns (blacklist-list "system-pathname-blacklist"))
-          (bad-combos (blacklist-table "blacklist"))
+    (let ((bad-patterns (excluded-systems-list "excluded-system-pathnames"))
+          (bad-combos (excluded-systems-table "excluded-systems"))
           (combo-key (format nil "~A ~A"
                              (project-name source)
                              (pathname-name system-file))))
@@ -108,10 +108,11 @@
                   (search string (namestring system-file)))
                 bad-patterns)))))
 
-(defun blacklistedp (source system-file)
-  "Is SYSTEM-FILE for SOURCE somehow forbidden, e.g.  "
-  (let ((bad-patterns (blacklist-list "system-pathname-blacklist"))
-        (bad-combos (blacklist-table "blacklist"))
+(defun excluded-system-p (source system-file)
+  "Is SYSTEM-FILE for SOURCE excluded through a pathname exclusion
+list or a system name exclusion list?"
+  (let ((bad-patterns (excluded-systems-list "excluded-system-pathnames"))
+        (bad-combos (excluded-systems-table "excluded-systems"))
         (combo-key (format nil "~A ~A"
                            (project-name source)
                            (pathname-name system-file)))
@@ -132,12 +133,12 @@
 (defun build-system-files (source)
   "Return a list of system files in the build directory of SOURCE."
   (setf source (source-designator source))
-  (let* ((blacklist-fun (make-blacklister source))
+  (let* ((excluded-system-fun (make-system-excluder source))
          (base (ensure-cached-build-directory source))
          (wild (merge-pathnames "**/*.asd" base))
          (files (directory wild)))
     (mapcan (lambda (file)
-              (unless (funcall blacklist-fun file)
+              (unless (funcall excluded-system-fun file)
                 (when (find-if #'upper-case-p (file-namestring file))
                   (error "Mixed-case system file ~A cannot be used"
                          file))
@@ -171,7 +172,7 @@ if needed."
   (setf source (source-designator source))
   (let ((files (ensure-build-system-files source)))
     (remove-if (lambda (file)
-                 (blacklistedp source file))
+                 (excluded-system-p  source file))
                files)))
 
 (defun system-names (source)
@@ -184,7 +185,7 @@ if needed."
     ;; Add SBCL contribs first
     (let* ((base (sb-int:sbcl-homedir-pathname))
 	   (contrib-system-files
-	    (directory (merge-pathnames "contrib/*.asd" base))))
+	    (directory (merge-pathnames "**/*.asd" base))))
       (dolist (file contrib-system-files)
         (setf (gethash (pathname-name file) table) file)))
     (map-sources
@@ -205,6 +206,7 @@ if needed."
                           :direction :output
                           :if-exists :supersede)
     (maphash (lambda (system-name system-file)
+	       (declare (ignore system-name))
                (format stream "~A~%"
                        (enough-namestring system-file
                                           (translate-logical-pathname file))))
@@ -384,7 +386,7 @@ their name does not match the system file name."
   (with-system-index
     (dolist (system-file-name (system-names source))
       (dolist (system (ignore-errors (system-defined-systems system-file-name)))
-        (unless (blacklistedp source system)
+        (unless (excluded-system-p source system)
           (funcall fun system-file-name system))))))
 
 (defun acceptable-system-name (name)
@@ -453,7 +455,7 @@ structure \(SYSTEM-FILE-NAME SYSTEM-NAME &REST DEPENDENCIES). "
 (defun build-duration (source)
   (destructuring-bind (&key start-time end-time)
       (timing-data source)
-    (if start-time
+    (if (and start-time end-time)
 	(- end-time start-time)
 	-1)))
 
