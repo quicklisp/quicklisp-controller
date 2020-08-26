@@ -5,6 +5,10 @@
 
 (in-package #:depcheck)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (when (find-symbol "SBCL-HOMEDIR-PATHNAME" "SB-SYS")
+    (pushnew :sbcl-homedir-pathname *features*)))
+
 (defvar *direct-dependencies* nil)
 
 (defun load-asdf-system-table (file)
@@ -201,6 +205,7 @@
   (setenv "SBCL_HOME"
           (load-time-value
            (directory-namestring sb-int::*core-string*)))
+  (setf sb-sys::*sbcl-homedir-pathname* (sb-impl::%sbcl-homedir-pathname))
   #+nil
   (setenv "CC" "gcc")
   (eval *load-op-wrapper*)
