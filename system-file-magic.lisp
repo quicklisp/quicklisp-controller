@@ -64,6 +64,18 @@
         (format stream "~S~%~%"
                 sexp)))))
 
+(defun setenv (name value)
+  (let ((r
+         (sb-alien:alien-funcall
+          (sb-alien:extern-alien "setenv"
+                                 (sb-alien:function
+                                  sb-alien:int (sb-alien:c-string :not-null t)
+                                  (sb-alien:c-string :not-null t) sb-alien:int))
+          name value 1)))
+    (if (minusp r)
+        (error "setenv")
+        r)))
+
 (defun main (argv)
   (setf *package* (find-package :keyword))
   (sb-ext:disable-debugger)
@@ -71,6 +83,11 @@
   ;;                  (load-time-value
   ;;                   (directory-namestring sb-int::*core-string*))
   ;;                  1)
+  (setenv "SBCL_HOME"
+          (load-time-value
+           (directory-namestring sb-int::*core-string*)))
+  (setf sb-sys::*sbcl-homedir-pathname* (sb-impl::%sbcl-homedir-pathname))
+
   (destructuring-bind (index-file system-name output-file
                                   &optional project-name description-file)
       (rest argv)
