@@ -176,25 +176,21 @@ template pathname."
   (save-forms (list form) file))
 
 (defun tarball-contents (file)
-  (with-run-output (stream ("tar" "tzf" (native file)))
-    (loop for line = (read-line stream nil)
-          while line collect line)))
+  (run-output-lines "tar" "tzf" file))
 
 (defun tarball-prefix (file)
   "For a tarball that unpacks into a subdirectory (e.g. 'foo/foo.asd',
 'foo/package.asd', etc), extract the subdirectory string. Errors if
 the subdirectory is absent or inconsistent."
   (let ((contents (tarball-contents file)))
-    (let ((first-slash (position #\/ (first contents))))
-      (unless first-slash
-        (error "No slash in first entry of tarball -- ~A" (first contents)))
-      (let ((prefix (subseq (first contents) 0
-                            (1+ first-slash))))
-        (dolist (entry contents prefix)
-          (unless (and (<= (length prefix) (length entry))
-                       (string= prefix entry :end2 (length prefix)))
-            (error "Tarball ~A lacks consistent prefix output directory"
-                   file)))))))
+    (let ((prefixes (loop for path in contents
+			  collect
+			  (subseq path 0 (position #\/ path)))))
+      (unless (every 'string= prefixes (rest prefixes))
+	(error "Inconsistent prefixes in ~A: ~S"
+	       file
+	       (remove-duplicates prefixes :test 'string=)))
+      (format nil "~A/" (first prefixes)))))
 
 (defun tarball-canonical-name (file)
   (string-right-trim "/" (tarball-prefix file)))
@@ -308,3 +304,28 @@ the subdirectory is absent or inconsistent."
 			    (githappy:js "description" description
 					 "public" public
 					 "files" (table key (table "content" value)))))))
+
+
+(defun gist-string (&key (description "No description") string (public t))
+  (unless string
+    (error "string required"))
+  (flet ((js (&rest args)
+	   (apply #'githappy:js args))
+	 (table (&rest args)
+	   (apply #'githappy:table args)))
+    (let ((value string)
+	  (key "text.md"))
+      (githappy:create-gist :body
+			    (githappy:js "description" description
+					 "public" public
+					 "files" (table key (table "content" value)))))))
+
+(defun how-long-ago (days)
+  (cond ((< days 1)
+	 "less than a day")
+	((< days 21)
+	 (format nil "~:D day~:P" (truncate days)))
+	((< days 365)
+	 (format nil "~:D week~:P" (truncate days 7.0)))
+	(t
+	 (format nil "~:D year~:P" (truncate days 365.0)))))

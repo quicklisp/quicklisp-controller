@@ -45,6 +45,14 @@
       (with-run-output (stream ("git" "rev-parse" "HEAD"))
         (read-line stream)))))
 
+(defmethod source-cache-timestamp ((source git-source))
+  (let ((unix-time-offset (load-time-value (encode-universal-time 0 0 0 1 1 1970 0))))
+    (let ((checkout (ensure-source-cache source)))
+      (with-posix-cwd checkout
+	(with-run-output (stream ("git" "show" "-s" "--format=%ct"))
+          (let ((unix-time-string (read-line stream)))
+	    (+ (parse-integer unix-time-string) unix-time-offset)))))))
+
 (defmethod tag-data :around ((source branched-git-source))
   (let ((tag (call-next-method))
         (commit (commit-id source)))

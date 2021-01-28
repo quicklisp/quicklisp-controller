@@ -154,6 +154,88 @@ the string is returned unchanged."
                  (subseq line end))))
 
 
+;;; Scraping error logs for the real problem
+
+(defstruct peekstream
+  stream
+  buffered-line)
+
+(defun next-line (peekstream)
+  (if (peekstream-buffered-line peekstream)
+      (shiftf (peekstream-buffered-line peekstream) nil)
+      (read-line (peekstream-stream peekstream) nil)))
+
+(defun peek-line (peekstream)
+  (or (peekstream-buffered-line peekstream)
+      (setf (peekstream-buffered-line peekstream)
+	    (read-line (peekstream-stream peekstream) nil))))
+
+(defun unread-line (line peekstream)
+  (setf (peekstream-buffered-line peekstream) line))
+
+(defun =line-matches (pattern)
+  (let ((scanner (ppcre:create-scanner pattern)))
+    (lambda (line)
+      (ppcre:scan scanner line))))
+
+(defun callfun (object)
+  (lambda (fun)
+    (funcall fun object)))
+
+(defun =or (&rest funs)
+  (lambda (object)
+    (some (callfun object) funs)))
+
+(defun =not (fun)
+  (complement fun))
+
+(defun skip-text-until (fun stream)
+  (loop for line = (peek-line stream)
+       while line
+     do
+       (cond ((funcall fun line)
+	      (return line))
+	     (t
+	      (next-line stream)))))
+
+(defun collect-text-while (fun stream)
+  (with-output-to-string (s)
+    (loop for line = (peek-line stream)
+       while (and line (funcall fun line))
+       do (write-line (next-line stream) s))))
+
+(defun collect-text-between (start-fun end-fun stream)
+  (let* ((first-line (skip-text-until start-fun stream))
+	 (rest (and first-line (next-line stream) (collect-text-while (=not end-fun) stream))))
+    (when first-line
+      (concatenate 'string
+		   first-line #(#\newline)
+		   rest))))
+
+(defun extract-warnings-and-errors (file)
+  "Scrape warnings and errors out of the logfile FILE. Repeated
+consecutive strings are coalesced into a single string to avoid
+redundant info."
+  (flet ((coalesce-consecutive-strings (strings)
+	   (let ((out '()))
+	     (dolist (string strings (nreverse out))
+	       (unless (equal (first out) string)
+		 (push string out))))))
+    (coalesce-consecutive-strings
+     (with-open-file (stream file)
+       (let ((pstream (make-peekstream :stream stream)))
+	 (let (result)
+	   (loop
+	     (let ((match (collect-text-between (=or (=line-matches "^; caught (COMMON-LISP:)?(WARNING|ERROR):")
+						     (=line-matches "^Unhandled"))
+						(=not (=line-matches "^;"))
+						pstream)))
+	       (if match
+		   (push match result)
+		   (return (nreverse result)))))))))))
+
+
+
 ;;; Posting to S3
 
 (defun report-publishing-enabled-p ()
@@ -208,6 +290,8 @@ the string is returned unchanged."
 (defgeneric write-html-failure-report-content (object stream))
 (defgeneric write-html-failure-report-footer (object stream))
 
+(defgeneric failure-impact (object))
+
 (defmethod failure-report-html-file (base object)
   (relative-to base (failure-report-url object)))
 
@@ -225,11 +309,38 @@ the string is returned unchanged."
     :reader source)
    (failure-log-file
     :initarg :failure-log-file
-    :reader failure-log-file)))
+    :reader failure-log-file)
+   (warnings-and-errors
+    :reader warnings-and-errors)
+   (breaks
+    :accessor breaks
+    :initform nil)
+   (broken-by
+    :accessor broken-by
+    :initform nil)))
 
 (defmethod print-object ((object failing-system) stream)
   (print-unreadable-object (object stream :type t)
     (write-string (system-name object) stream)))
+
+(defmethod failure-impact ((object failing-system))
+  (length (breaks object)))
+
+(defmethod slot-unbound ((class t) (instance failing-system) (slot (eql 'warnings-and-errors)))
+  (setf (slot-value instance 'warnings-and-errors)
+	(extract-warnings-and-errors (failure-log-file instance))))
+
+(defun broken-by-name (failing-system)
+  (let* ((unhandled-log-line
+	  (find "Unhandled" (warnings-and-errors failing-system)
+		:test #'search))
+	 (responsible-system-name
+	  (ppcre:register-groups-bind (system-name)
+	      ("^Unhandled.*while compiling.*SOURCE-FILE \"(.*?)\""
+	       unhandled-log-line)
+	    system-name)))
+    (or responsible-system-name
+	(system-name failing-system))))
 
 (defmethod new-failure-p ((object failing-system))
   (let* ((dist (ql-dist:find-dist "quicklisp"))
@@ -239,22 +350,11 @@ the string is returned unchanged."
         (< (days-old (source object)) 30))))
 
 (defmethod failure-data ((source upstream-source))
-  (let ((result '()))
-    (map-source-systems
-     source
-     (lambda (system-file-name system-name)
-       (write-char #\. *trace-output*)
-       (force-output *trace-output*)
-       (let ((file (winfail-file "fail" source system-file-name system-name)))
-         (when (probe-file file)
-           (push (make-instance 'failing-system
-                                :system-name system-name
-                                :system-file-name
-                                system-file-name
-                                :source source
-                                :failure-log-file file)
-                 result)))))
-    result))
+  (remove (name source)
+	  (failing-systems)
+	  :test-not 'string=
+	  :key (lambda (system)
+		 (name (source system)))))
 
 (defmethod name ((object failing-system))
   (name (source object)))
@@ -281,6 +381,9 @@ the string is returned unchanged."
     (format stream "~A (~D failing system~:P)"
             (name (source object))
             (length (failure-data object)))))
+
+(defmethod failure-impact ((object failing-source))
+  (reduce #'+ (mapcar #'failure-impact (failure-data object))))
 
 (defmethod source-link ((source failing-source))
   (source-link (source source)))
@@ -347,9 +450,29 @@ source is found that matches the filename, return nil."
     (directory fail-wild)))
 
 (defun failing-systems ()
-  (remove nil
-          (mapcar #'parse-failure-file-name
-                  (failing-source-log-files))))
+  ;; This is the best way to get failure info, because it populates
+  ;; useful failure cross-reference data.
+  (let* ((systems (remove nil
+			  (mapcar #'parse-failure-file-name
+				  (failing-source-log-files))))
+	 (table (make-hash-table :test 'equal)))
+    (dolist (system systems)
+      (setf (gethash (system-name system) table) system))
+    (dolist (system systems)
+      (let ((broken-by (or (gethash (broken-by-name system) table)
+			   system)))
+	(unless (eq broken-by system)
+	  (setf (broken-by system)
+		broken-by)
+	  (push system (breaks broken-by)))))
+    systems))
+
+(defun who-is-broken-by (name)
+  (remove name (failing-systems)
+	  :test-not #'string=
+	  :key (lambda (failing-system)
+		 (and (broken-by failing-system)
+		      (system-name (broken-by failing-system))))))
 
 (defun failure-log-failure-report ()
   "Scan the failure log files of all projects to produce a failure report."
@@ -402,6 +525,13 @@ source is found that matches the filename, return nil."
   (loop for scanner in *log-lines-that-are-boring*
        thereis (ppcre:scan scanner line)))
 
+(defun failure-snippet (object)
+  (etypecase object
+    (failing-system
+     (format nil "~{~A~^...~%~}~%"
+	     (extract-warnings-and-errors (failure-log-file object))))
+    (failing-source
+     (format nil "~{~A~}"  (mapcar #'failure-snippet (failure-data object))))))
 
 (defmethod write-html-failure-report-header (object stream)
   (format stream "<html><head><title>~A</title>~
@@ -476,22 +606,45 @@ source is found that matches the filename, return nil."
          (new (remove-if-not #'new-failure-p sources))
          (old (remove-if #'new-failure-p sources)))
     (flet ((show (sources)
-             (dolist (source sources)
+             (dolist (source (sort (copy-seq sources) #'string< :key #'name))
                (let ((link (source-link source)))
                  (format stream "<li~@[ ~*class='new-failure'~]> ~A:<br>"
                          (new-failure-p source)
                          (name source))
+		 (let ((age (source-cache-age-or-nil (source source))))
+		   (when age
+		     (format stream "last modified ~A ago<br>~%" (how-long-ago age))))
                  (if link
                      (format stream "<a class='source-link' href='~A'>~A</a>" link link)
                      (format stream "<span class='source-location'>~A</span>" (location (source source))))
                  (format stream "</li>~%")
                  (format stream "<ul>")
-                 (dolist (system (failure-data source))
-                   (format stream "<li~@[ ~*class='new-failure'~]> <a href='~A'>~A</a></li>~%"
-                           (new-failure-p system)
-                           (failure-report-url system)
-                           (system-name system))))
-               (format stream "</ul>~%"))))
+                 (dolist (system (sort (copy-seq (failure-data source)) #'string< :key #'system-name))
+		   (let ((responsible (broken-by system))
+			 (system-name (system-name system)))
+                     (format stream "<li~@[ ~*class='new-failure'~]> <a name='~A'></a><a href='~A'>~A</a>"
+                             (new-failure-p system)
+                             system-name
+                             (failure-report-url system)
+                             system-name)
+		     (when responsible
+		       (format stream " <i>caused by <a href='#~A'>~A</a></i>~%"
+			       (system-name responsible)
+			       (system-name responsible)))
+		     (when (breaks system)
+		       (format stream "<br>Breaks: ")
+		       (dolist (broken (breaks system))
+			 (format stream "<a href='#~A'>~A</a> "
+				 (system-name broken)
+				 (system-name broken)))
+		       (format stream "<br>"))
+		     (unless responsible
+		       (format stream "<pre class='snippet'>~A</pre>"
+			       (cl-who:escape-string (failure-snippet system))))
+		     (when responsible
+		       (format stream "<br>"))
+		     (format stream "</li>~%"))))
+               (format stream "</ul>"))))
       (show new)
       (format stream "<br><br>")
       (show old)))
@@ -503,6 +656,9 @@ source is found that matches the filename, return nil."
   (let ((link (source-link (source object))))
     (when link
       (format stream "<li> site: <a href='~A'>~A</a>~%" link link)))
+  (let ((age (source-cache-age-or-nil (source object))))
+    (when age
+      (format stream "<li> last updated: ~A ago" (how-long-ago age))))
   (format stream "</ul>~%")
   (format stream "<p>~A~%" (versions-and-such)))
 

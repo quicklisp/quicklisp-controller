@@ -1,3 +1,11 @@
+pre.snippet {
+    overflow-wrap: break-word;
+    color: black;
+    font-weight: normal;
+    white-space: pre-wrap;
+    width: 75em;
+}
+
 .failing-system pre {
     color: #111;
     margin-left: 2em;

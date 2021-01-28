@@ -84,6 +84,25 @@
   (:documentation "Try to update cached data for SOURCE."))
 
 
+(defgeneric source-cache-timestamp (source)
+  (:documentation "Return the timestamp, as a universal time, at which
+  the source cache was last updated by the upstream. Return NIL if the
+  timestamp can't be determined.")
+  (:method ((source t))
+    nil))
+
+(defgeneric source-cache-age-or-nil (source)
+  (:documentation "Return the age, in days, of the source's cached
+  data. For VCS, it is the age of commit. For HTTP/HTTPS, it's the
+  date on the last-modified. If the age can't be determined, return
+  NIL.")
+  (:method (source)
+    (let ((time (source-cache-timestamp source)))
+      (and time
+	   (/ (- (get-universal-time) (source-cache-timestamp source))
+	      86400.0)))))
+
+
 ;;;
 ;;; Loading & mapping sources from the quicklisp-projects directory.
 ;;;

@@ -200,6 +200,9 @@
   (when (equalp (second argv) "--sbcl-version")
     (format t "~A~%" (lisp-implementation-version))
     (sb-ext:exit :code 0))
+  (when (getenv "DEPCHECK_HIDEBUG")
+    (sb-ext:restrict-compiler-policy 'debug 3)
+    (sb-ext:restrict-compiler-policy 'safety 3))
   (unless (getenv "DEPCHECK_DEBUG")
     (sb-ext:disable-debugger))
   (setenv "SBCL_HOME"

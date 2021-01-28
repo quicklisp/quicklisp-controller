@@ -6,6 +6,11 @@
   (run "rm" "-rf" (merge-pathnames ".cache/common-lisp/"
                                    (user-homedir-pathname))))
 
+(defun clear-all-caches ()
+  (clear-fasl-cache)
+  (clear-dist-caches)
+  (clear-system-file-magic-cache))
+
 (defun system-from-release (system-name dist)
   (let* ((dist (ql-dist:dist dist))
          (system (ql-dist:find-system-in-dist system-name dist))
@@ -162,15 +167,27 @@
     (check-for-program program)))
 
 (defun crank (&optional (source *last-source*))
+  (setf source (source-designator source))
   (check-critical-programs)
   (unless (source-designator source)
     (warn "Not a known source -- ~S" source)
     (return-from crank nil))
   (setf *last-source* source)
   (update-system-file-index)
-  (let ((wins (find-more-winning-systems source)))
-    (list :fails (missing-components source)
-          :wins wins)))
+  (find-more-winning-systems source)
+  (let ((fails (failure-data source)))
+    (when fails
+      (format t "FAILURES:~%")
+      (dolist (fail fails)
+	(cond ((broken-by fail)
+	       (let ((responsible-system (broken-by fail)))
+		 (format t "System ~A broken by ~A~%"
+			 (system-name fail)
+			 (system-name responsible-system))))
+	      (t
+	       (format t "~S:~%~A"
+		       (system-name fail)
+		       (failure-snippet fail))))))))
 
 (defun source-pathname (project-name)
   (let ((directory `(:relative "quicklisp-controller"

@@ -24,6 +24,10 @@
                          (string-digest (location source)))
                  "quicklisp-controller:upstream-cache;http;"))
 
+(defmethod source-cache-timestamp ((source http-source))
+  (and (probe-file (cache-object-file source))
+       (file-write-date (cache-object-file source))))
+
 (defmethod make-release-tarball ((source http-source) output-file)
   (let ((prefix (release-tarball-prefix source))
         (package (ensure-source-cache source)))
