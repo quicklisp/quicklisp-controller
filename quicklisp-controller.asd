@@ -12,16 +12,16 @@
                #:drakma
                #:yason
                #:function-cache
-	       #:trivial-utf-8
+               #:trivial-utf-8
                #:ironclad
                #:lparallel
-	       #:cl-who
+               #:cl-who
                #:githappy
                #:project-info
-	       #:westbrook)
+               #:westbrook)
   :serial t
   :components ((:file "tarhash")
-	       (:file "github-issues")
+               (:file "github-issues")
                (:file "package")
                (:file "config")
                (:file "logical-host")
@@ -29,7 +29,7 @@
                (:file "utils")
                (:file "setup")
                (:file "upstream")
-	       (:file "system-file-magic-cache")
+               (:file "system-file-magic-cache")
                (:file "dist-cache")
                (:file "upstream-vcs")
                (:file "upstream-http")
@@ -38,6 +38,7 @@
                (:file "upstream-darcs")
                (:file "upstream-git")
                (:file "upstream-github")
+               (:file "upstream-gitlab")
                (:file "upstream-mercurial")
                (:file "upstream-svn")
                (:file "upstream-bzr")
@@ -51,11 +52,12 @@
                (:file "update-client-version")
                (:file "descriptions")
                (:file "ng-indexes")
-	       (:file "git")
-	       (:file "html-failure-report")
-	       (:file "rss-failure-feeds")
+               (:file "git")
+               (:file "html-failure-report")
+               (:file "rss-failure-feeds")
                (:file "recrank")
-               (:file "irepl")))
+               (:file "irepl")
+               (:file "submit-bug-report")))
 
 (defpackage #:quicklisp-controller-config
   (:use)
