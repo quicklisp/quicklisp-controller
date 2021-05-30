@@ -2,4 +2,4 @@
 
 cd `dirname $0`
 PATH=$PATH:/usr/local/bin
-screen -c daily.screenrc -dmLS daily-build
+screen -L -c daily.screenrc -dmLS daily-build
