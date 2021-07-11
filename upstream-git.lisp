@@ -27,7 +27,7 @@
 
 (defmethod vcs-update ((source tagged-git-source) checkout-directory)
   (with-posix-cwd checkout-directory
-    (run "git" "fetch")
+    (run "git" "fetch" "--tags")
     (run "git" "checkout" (tag-data source))))
 
 (defmethod vcs-update :after ((source git-source) checkout-directory)
