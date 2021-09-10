@@ -119,6 +119,38 @@
       ;;(check-attribute 'asdf:system-license :license)
       (check-attribute 'asdf:system-author :author))))
 
+(defun child-system-p (maybe-parent-name maybe-child-name)
+  (and (not (equal maybe-parent-name maybe-child-name))
+       (equal maybe-parent-name (asdf:primary-system-name maybe-child-name))))
+
+(defun system-direct-dependencies (system-designator)
+  (mapcar 'normalize-dependency
+          (asdf:system-depends-on (asdf:find-system system-designator))))
+
+(defun replace-inferred-system-deps-1 (system-name dependencies)
+  (let* ((inferred-children-deps
+           (remove-if-not (lambda (name) (child-system-p system-name name))
+                          dependencies))
+         (deps-of-children
+           (reduce 'append
+                   (mapcar 'system-direct-dependencies inferred-children-deps)
+                   :initial-value nil)))
+    (values
+     (append (set-difference dependencies inferred-children-deps)
+             deps-of-children)
+     (null inferred-children-deps))))
+
+(defun replace-inferred-system-deps (system-name dependencies)
+  (let ((external-deps dependencies))
+    (loop
+      (multiple-value-bind (new-dependencies donep)
+          (replace-inferred-system-deps-1 system-name external-deps)
+        (setf external-deps (remove-duplicates new-dependencies
+                                               :test #'equal))
+        (when donep
+          (return))))
+    external-deps))
+
 (defun compute-dependencies (system-file system-name)
   (let* ((asdf:*system-definition-search-functions*
           (list #-asdf3 'asdf::sysdef-find-asdf
@@ -135,6 +167,10 @@
       (when (equalp system-file system-name)
         (setf dependencies *implied-dependencies*)))
     (asdf:oos 'asdf:load-op system-name)
+    (when (and (typep (asdf:find-system system-name) 'asdf:package-inferred-system)
+               (equalp system-name system-file))
+      (setf *direct-dependencies*
+            (replace-inferred-system-deps system-name *direct-dependencies*)))
     (setf dependencies
           (remove-duplicates (append *direct-dependencies* dependencies)
                              :test #'equalp))
