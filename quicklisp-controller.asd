@@ -39,6 +39,7 @@
                (:file "upstream-git")
                (:file "upstream-github")
                (:file "upstream-gitlab")
+               (:file "upstream-gitea")
                (:file "upstream-mercurial")
                (:file "upstream-svn")
                (:file "upstream-bzr")
